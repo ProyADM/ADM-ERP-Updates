@@ -1,0 +1,11 @@
+﻿# No hay archivos sensibles en este repositorio
+# Todo es público y seguro
+
+# Archivos temporales
+*.tmp
+*.swp
+*.log
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
