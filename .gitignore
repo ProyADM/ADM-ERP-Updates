@@ -9,3 +9,11 @@
 # Archivos de sistema
 .DS_Store
 Thumbs.db
+
+# 2. Agregar estas líneas al final del archivo:
+# ============================================================
+# EXCEPCIONES PARA LOGS DE AUDITORÍA
+# ============================================================
+# Permitir los logs de auditoría y publicación (ISO 27001)
+!logs/auditoria_publicaciones.log
+!logs/publicacion_*.log
