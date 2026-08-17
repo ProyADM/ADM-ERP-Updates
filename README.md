@@ -18,7 +18,7 @@ Este repositorio contiene las actualizaciones del sistema ADM-ERP.
 ## 📥 Descargar
 
 Para instalar ADM-ERP, descarga:
-👉 [ADM-ERP_Setup_Latest.exe](https://github.com/ProyADM/ADM-ERP-Updates/blob/main/ADM-ERP_Setup_Latest.exe)
+👉 [ADM-ERP_Setup_Latest.exe](https://github.com/ProyADM/ADM-ERP-Updates/raw/main/ADM-ERP_Setup_Latest.exe)
 
 ## 🔐 Seguridad
 
