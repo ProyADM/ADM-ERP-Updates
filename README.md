@@ -6,7 +6,7 @@ Este repositorio contiene las actualizaciones del sistema ADM-ERP.
 
 - ADM-ERP_Setup_Latest.exe - Instalador de la última versión
 - updates/ - Archivos de actualización (últimas 2 versiones)
-- ersion.json - Información de la última versión
+- version.json - Información de la última versión
 - logs/ - Registros de publicaciones y descargas
 
 ## 🔒 Política de retención
@@ -18,12 +18,12 @@ Este repositorio contiene las actualizaciones del sistema ADM-ERP.
 ## 📥 Descargar
 
 Para instalar ADM-ERP, descarga:
-👉 [ADM-ERP_Setup_Latest.exe](https://github.com/ProyADM/ADM-ERP-Updates/releases/latest)
+👉 [ADM-ERP_Setup_Latest.exe](https://github.com/ProyADM/ADM-ERP-Updates/blob/main/ADM-ERP_Setup_Latest.exe)
 
 ## 🔐 Seguridad
 
 - Los archivos están firmados digitalmente
-- Los checksums están disponibles en ersion.json
+- Los checksums están disponibles en version.json
 - Todas las descargas son registradas
 
 ## 📋 Versiones
