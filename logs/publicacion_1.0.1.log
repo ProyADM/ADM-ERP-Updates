@@ -1,15 +1,17 @@
 ﻿============================================================
   REGISTRO DE PUBLICACION - ADM-ERP
 ============================================================
-Fecha de publicacion: 2026-08-22 21:33:35
+Fecha de publicacion: 2026-08-23 13:04:50
 Version: 1.0.1
 Publicado por: pmolina
 Equipo: HQADM0023
 
 Changelog:
-+ Separación de módulos Stock y Reportes
-+ Carga diferida de reportes
-! Correcciones menores
+🔧 Fix: Notificación de actualización persistente
+   - El sistema guarda la versión instalada en localStorage.
+   - El cartel solo aparece si hay una versión remota mayor.
+🧹 Separación de módulos Stock y Reportes
+   - El reporte 'Ventas por País' se carga bajo demanda.
 
 ============================================================
 Archivos publicados:

@@ -1,16 +1,15 @@
 {
-  "version": "1.0.2",
-  "release_date": "2026-08-22 21:54:57",
+  "version": "1.0.1",
+  "release_date": "2026-08-23 13:04:50",
   "changelog": [
     "?? Fix: Notificaci?n de actualizaci?n persistente",
-    "- Ahora el sistema guarda la versi?n instalada en localStorage.",
-    "- El cartel de actualizaci?n solo aparece si hay una versi?n remota mayor a la instalada.",
-    "?? Mejoras en la separaci?n de m?dulos",
-    "- El reporte 'Ventas por Pa?s' se carga bajo demanda (no al inicio).",
-    "?? Documentaci?n actualizada"
+    "- El sistema guarda la versi?n instalada en localStorage.",
+    "- El cartel solo aparece si hay una versi?n remota mayor.",
+    "?? Separaci?n de m?dulos Stock y Reportes",
+    "- El reporte 'Ventas por Pa?s' se carga bajo demanda."
   ],
-  "checksum": "04291362ec7fb7dfd2ad2efc3c96f93a7f45dc30cf5d93d56c18ce51ae8b7d27",
-  "download_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/updates/update_1.0.2.zip",
+  "checksum": "5f81b93fdee4de0422a583fe9b61dd44bfaa3c16221e9801e17babb2bdb0567a",
+  "download_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/updates/update_1.0.1.zip",
   "installer_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/ADM-ERP_Setup_Latest.exe",
   "requires_restart": true,
   "force_update": false
