@@ -1,8 +1,12 @@
 {
   "version": "1.0.0",
-  "release_date": "2026-08-23",
-  "changelog": [],
-  "manifest_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/manifest.json",
-  "download_url": "",
-  "files_url": ""
+  "release_date": "2026-08-23 14:17:42",
+  "changelog": [
+    "Versi?n base con todos los fixes (version.txt, updater.py, app.js, separaci?n de m?dulos)"
+  ],
+  "checksum": "0818f01ea1eb93f745653d400d4fcf76127ebf7817931dc760d89be1202f6803",
+  "download_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/updates/update_1.0.0.zip",
+  "installer_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/ADM-ERP_Setup_Latest.exe",
+  "requires_restart": true,
+  "force_update": false
 }

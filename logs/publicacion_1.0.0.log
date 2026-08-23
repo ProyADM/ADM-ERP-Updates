@@ -1,21 +1,21 @@
 ﻿============================================================
   REGISTRO DE PUBLICACION - ADM-ERP
 ============================================================
-Fecha de publicacion: 2026-08-10 22:08:28
+Fecha de publicacion: 2026-08-23 14:17:43
 Version: 1.0.0
 Publicado por: pmolina
 Equipo: HQADM0023
 
 Changelog:
-+ Sistema de gestion empresarial ADM-ERP
-+ Modulos: Stock, CXP, Cotizaciones y Reportes
-+ Autenticacion SSO con Windows
-+ Sistema de actualizaciones automaticas
-+ Instalador con Inno Setup
+Versión base con todos los fixes (version.txt, updater.py, app.js, separación de módulos)
 
 ============================================================
 Archivos publicados:
   - ADM-ERP_Setup_Latest.exe (sobrescrito)
   - version.json (sobrescrito)
   - updates/update_1.0.0.zip (nuevo)
+
+Politica de retencion:
+  - Instalador: Solo la ultima version (Latest)
+  - Actualizaciones: Ultimos 2 ZIPs
 ============================================================
