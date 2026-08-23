@@ -1,0 +1,26 @@
+﻿============================================================
+  REGISTRO DE PUBLICACION - ADM-ERP
+============================================================
+Fecha de publicacion: 2026-08-22 21:54:59
+Version: 1.0.2
+Publicado por: pmolina
+Equipo: HQADM0023
+
+Changelog:
+🔧 Fix: Notificación de actualización persistente
+   - Ahora el sistema guarda la versión instalada en localStorage.
+   - El cartel de actualización solo aparece si hay una versión remota mayor a la instalada.
+🧹 Mejoras en la separación de módulos
+   - El reporte 'Ventas por País' se carga bajo demanda (no al inicio).
+📚 Documentación actualizada
+
+============================================================
+Archivos publicados:
+  - ADM-ERP_Setup_Latest.exe (sobrescrito)
+  - version.json (sobrescrito)
+  - updates/update_1.0.2.zip (nuevo)
+
+Politica de retencion:
+  - Instalador: Solo la ultima version (Latest)
+  - Actualizaciones: Ultimos 2 ZIPs
+============================================================
