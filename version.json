@@ -1,15 +1,13 @@
 {
-  "version": "1.0.0",
-  "release_date": "2026-08-10 22:01:22",
+  "version": "1.0.1",
+  "release_date": "2026-08-22 21:33:33",
   "changelog": [
-    "+ Sistema de gestion empresarial ADM-ERP",
-    "+ Modulos: Stock, CXP, Cotizaciones y Reportes",
-    "+ Autenticacion SSO con Windows",
-    "+ Sistema de actualizaciones automaticas",
-    "+ Instalador con Inno Setup"
+    "+ Separaci?n de m?dulos Stock y Reportes",
+    "+ Carga diferida de reportes",
+    "! Correcciones menores"
   ],
-  "checksum": "4105a4e9b1d81125e1d91a43a845e217fd571e5d26eefa57148a9efa1e866020",
-  "download_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/updates/update_1.0.0.zip",
+  "checksum": "ff80f992f10676709f81e24a8d78ecf84662606b9dda2e529522c4562703bd6d",
+  "download_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/updates/update_1.0.1.zip",
   "installer_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/ADM-ERP_Setup_Latest.exe",
   "requires_restart": true,
   "force_update": false
