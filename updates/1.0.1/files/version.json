@@ -1,15 +1,15 @@
 {
   "version": "1.0.1",
-  "release_date": "2026-08-27 20:05:09",
+  "release_date": "2026-08-27 17:04:22",
   "changelog": [
-    "? Dashboard completo con stock, ventas y contratos",
-    "?? Sistema de notificaciones globales (badge y polling)",
-    "?? Consultas optimizadas para el Dashboard",
-    "?? Estilos espec?ficos para Dashboard",
-    "?? Correcciones menores en rutas y consultas",
-    "?? Documentaci?n actualizada"
+    "✅ Dashboard completo con stock, ventas y contratos",
+    "🔔 Sistema de notificaciones globales (badge y polling)",
+    "📊 Consultas optimizadas para el Dashboard",
+    "🎨 Estilos específicos para Dashboard",
+    "🐛 Correcciones menores en rutas y consultas",
+    "📝 Documentación actualizada"
   ],
-  "checksum": "1f55aec1e6fca2cd83205f731a93067841f013f29e706c9ad251c346497c2788",
+  "checksum": "3c73c47aa32f8c1bb7e64331e8b3a6334304115ee444ea2f31352ac073c55fad",
   "download_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/updates/update_1.0.1.zip",
   "manifest_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/updates/1.0.1/manifest.json",
   "files_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/updates/1.0.1/files/",

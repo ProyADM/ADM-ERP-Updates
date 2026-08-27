@@ -1,0 +1,577 @@
+{
+  "app.py": {
+    "hash": "9c46b4e23713a4f146ecf35baea3b2c3",
+    "size": 35576,
+    "modified": "2026-08-27T17:01:52.782389"
+  },
+  "changelog_temp.txt": {
+    "hash": "16be4b21f0c14fecadd7dad82ff5ddd6",
+    "size": 285,
+    "modified": "2026-08-27T17:03:36.538972"
+  },
+  "config.py": {
+    "hash": "27871974c5cad3732259d5f77d55cc0b",
+    "size": 12984,
+    "modified": "2026-08-08T16:28:19.567762"
+  },
+  "crypto_utils.py": {
+    "hash": "5e9ae38aae0e452974bb89b83b0d0c67",
+    "size": 14375,
+    "modified": "2026-08-08T16:44:26.146734"
+  },
+  "cuentas.py": {
+    "hash": "3abcfe4741e3dbe8ffc678f29e6c97dd",
+    "size": 4204,
+    "modified": "2026-06-27T20:15:01.835563"
+  },
+  "estructura_proyecto.txt": {
+    "hash": "28f0aa8cb4e0b8862cd5da0a77887c57",
+    "size": 1246256,
+    "modified": "2026-08-22T15:04:13.114111"
+  },
+  "manifest.json": {
+    "hash": "e260e8540608b5f50ce534cf169d9934",
+    "size": 17390,
+    "modified": "2026-08-23T14:17:30.334125"
+  },
+  "requirements.txt": {
+    "hash": "46163539f53e442d44ae0d8130fd11a8",
+    "size": 682,
+    "modified": "2026-08-03T22:47:30.361526"
+  },
+  "updater.py": {
+    "hash": "68a35c4652b27b189e800508385a7a09",
+    "size": 21003,
+    "modified": "2026-08-23T13:41:43.098797"
+  },
+  "version.json": {
+    "hash": "c526c7f5e532e9e5a63cb311cba19efc",
+    "size": 406,
+    "modified": "2026-08-27T17:02:29.521472"
+  },
+  "frontend\\app.js": {
+    "hash": "a311144906f27c820989b62433fed7f3",
+    "size": 34760,
+    "modified": "2026-08-27T14:40:07.183242"
+  },
+  "frontend\\index.html": {
+    "hash": "43fff7b7857f9c93c0263b65f46d25ca",
+    "size": 22874,
+    "modified": "2026-08-27T14:42:05.409552"
+  },
+  "frontend\\css\\cotizaciones.css": {
+    "hash": "1f9189a73300de514ad04ab752740d2a",
+    "size": 288,
+    "modified": "2026-07-01T18:25:18.302929"
+  },
+  "frontend\\css\\cxp.css": {
+    "hash": "7f6ceb980f5abefc3ebe0c2975f4f272",
+    "size": 16833,
+    "modified": "2026-07-12T16:47:05.149096"
+  },
+  "frontend\\css\\dashboard.css": {
+    "hash": "65be796062fbcbf831bfb6f1f1fb053e",
+    "size": 3057,
+    "modified": "2026-08-23T20:03:59.296349"
+  },
+  "frontend\\css\\global.css": {
+    "hash": "b3438be86cd56697f994203e224abf0c",
+    "size": 17052,
+    "modified": "2026-08-23T19:51:39.397403"
+  },
+  "frontend\\css\\reportes.css": {
+    "hash": "659128721c7663c8292f45dc9ec0091e",
+    "size": 4365,
+    "modified": "2026-07-01T18:25:03.186836"
+  },
+  "frontend\\css\\stock.css": {
+    "hash": "71a8d279486f74ecfc94a40f63b069c8",
+    "size": 13067,
+    "modified": "2026-07-04T13:09:16.828162"
+  },
+  "frontend\\modules\\cotizaciones.js": {
+    "hash": "67b0e9d74f2d107af970f96803e7bab8",
+    "size": 12311,
+    "modified": "2026-08-22T19:09:40.892197"
+  },
+  "frontend\\modules\\dashboard.js": {
+    "hash": "02c926b52682d30f85b6f168c36a71fc",
+    "size": 4271,
+    "modified": "2026-08-26T18:51:48.365563"
+  },
+  "frontend\\modules\\notificaciones.js": {
+    "hash": "ef4b52ed1bb6d5f73ad0e28750b76622",
+    "size": 6797,
+    "modified": "2026-08-27T14:42:34.175752"
+  },
+  "frontend\\modules\\reportes.js": {
+    "hash": "b04ddc591e20ed0a5c0d336d89a49bdf",
+    "size": 26794,
+    "modified": "2026-08-22T21:02:48.797570"
+  },
+  "frontend\\modules\\templates.js": {
+    "hash": "c5142badb940e6b67a91ac571e157989",
+    "size": 42055,
+    "modified": "2026-08-23T20:03:22.031530"
+  },
+  "frontend\\modules\\cxp\\eliminar.js": {
+    "hash": "0bebf7953c9c01d97e576532b7f5210b",
+    "size": 3583,
+    "modified": "2026-07-12T20:30:51.444254"
+  },
+  "frontend\\modules\\cxp\\eventuales.js": {
+    "hash": "18e2e4513c1835f5dfb66db09755496d",
+    "size": 1457,
+    "modified": "2026-07-12T20:31:04.318814"
+  },
+  "frontend\\modules\\cxp\\index.js": {
+    "hash": "48c5b216a25f72e941bee3b20f5187ff",
+    "size": 2782,
+    "modified": "2026-08-08T17:26:11.361058"
+  },
+  "frontend\\modules\\cxp\\init.js": {
+    "hash": "7464e2f092eeea2e7881cc48ec2b4fe4",
+    "size": 10414,
+    "modified": "2026-08-08T19:29:51.149282"
+  },
+  "frontend\\modules\\cxp\\main.js": {
+    "hash": "5deb7c9dc64b6f72a754efdd5000ed0f",
+    "size": 14875,
+    "modified": "2026-08-08T17:01:46.690223"
+  },
+  "frontend\\modules\\cxp\\render.js": {
+    "hash": "b0cd347f59091a4149dee40a07809f1c",
+    "size": 15051,
+    "modified": "2026-08-08T17:01:31.533746"
+  },
+  "frontend\\modules\\cxp\\renglones.js": {
+    "hash": "015f413a35f9e9fc438528abf68a5a25",
+    "size": 15982,
+    "modified": "2026-07-24T20:23:39.652085"
+  },
+  "frontend\\modules\\cxp\\ui.js": {
+    "hash": "eecc8ce1481855b362449a48480e728d",
+    "size": 6385,
+    "modified": "2026-08-08T17:26:00.013770"
+  },
+  "frontend\\modules\\cxp\\utils.js": {
+    "hash": "13930c6b5f1e26f1c1b460c7a9093805",
+    "size": 4856,
+    "modified": "2026-07-25T10:51:31.580168"
+  },
+  "frontend\\modules\\reportes\\consolidado_pais.js": {
+    "hash": "9b514aaa730ee597ec816200267de364",
+    "size": 18749,
+    "modified": "2026-08-22T19:05:57.346598"
+  },
+  "frontend\\modules\\reportes\\consolidado_total.js": {
+    "hash": "286dbd5e7ca006a40c403de13f3f8101",
+    "size": 5938,
+    "modified": "2026-08-22T19:54:24.797925"
+  },
+  "frontend\\modules\\reportes\\index.js": {
+    "hash": "77f772609f49b597e3031b2f122c6e8f",
+    "size": 495,
+    "modified": "2026-08-22T21:03:26.487226"
+  },
+  "frontend\\modules\\reportes\\pendiente_cobro.js": {
+    "hash": "be81b8a6889b8570dfa5164d41303c2c",
+    "size": 14217,
+    "modified": "2026-07-25T22:02:52.279344"
+  },
+  "frontend\\modules\\shared\\tooltip-component.js": {
+    "hash": "e97f1fe92c7d9ec586e2197f67cefa48",
+    "size": 6925,
+    "modified": "2026-07-25T13:42:25.171257"
+  },
+  "frontend\\modules\\shared\\tooltips.js": {
+    "hash": "4614e9d67001e91ee779e2c5138660aa",
+    "size": 16358,
+    "modified": "2026-07-25T11:17:57.210297"
+  },
+  "frontend\\modules\\stock\\ajustes.js": {
+    "hash": "aad0541e461647d1426917ab4e8d0446",
+    "size": 10891,
+    "modified": "2026-08-08T17:27:11.662930"
+  },
+  "frontend\\modules\\stock\\articulos.js": {
+    "hash": "2a73ed82972a673ed1bf51ac4120e899",
+    "size": 9513,
+    "modified": "2026-08-08T17:27:26.093608"
+  },
+  "frontend\\modules\\stock\\consolidado.js": {
+    "hash": "c51dae4572bc99852f1f1b1c68ca46ea",
+    "size": 21829,
+    "modified": "2026-08-08T17:28:06.863393"
+  },
+  "frontend\\modules\\stock\\consultar.js": {
+    "hash": "41f37caf40988981d11429d719d28e9b",
+    "size": 10207,
+    "modified": "2026-08-08T19:54:44.189388"
+  },
+  "frontend\\modules\\stock\\depositos.js": {
+    "hash": "62ce56a22d9781a01f08e6fae4bd1872",
+    "size": 3749,
+    "modified": "2026-08-08T17:28:32.870689"
+  },
+  "frontend\\modules\\stock\\excel.js": {
+    "hash": "6112b864cb9cb2ae6a07e0134585667d",
+    "size": 2373,
+    "modified": "2026-08-08T17:28:53.512014"
+  },
+  "frontend\\modules\\stock\\index.js": {
+    "hash": "e88237b9ded1e9427f053bf03ee20d78",
+    "size": 3340,
+    "modified": "2026-08-08T17:29:08.481704"
+  },
+  "frontend\\modules\\stock\\transferencias.js": {
+    "hash": "646528460304a24b19d6f2340d634545",
+    "size": 4643,
+    "modified": "2026-08-08T17:29:19.890867"
+  },
+  "frontend\\modules\\stock\\utils.js": {
+    "hash": "bd7b76590976c7a8922e99e15103c921",
+    "size": 4482,
+    "modified": "2026-08-08T17:29:32.220752"
+  },
+  "installer\\ADM-ERP_Setup_v1.0.0.exe": {
+    "hash": "881fb78e41a104b323ca54593a9020b6",
+    "size": 164462160,
+    "modified": "2026-08-23T13:50:52.434453"
+  },
+  "modules\\__init__.py": {
+    "hash": "d7ec6643ed9d70c851534ed8f3cea5ee",
+    "size": 165,
+    "modified": "2026-07-09T11:20:14.441538"
+  },
+  "modules\\cotizaciones\\routes.py": {
+    "hash": "13c13350b01d234f0318821a6d0594b0",
+    "size": 18511,
+    "modified": "2026-08-08T19:52:59.764324"
+  },
+  "modules\\cotizaciones\\__init__.py": {
+    "hash": "64fa8b41cc3c0884d0c607c03d075719",
+    "size": 66,
+    "modified": "2026-06-28T17:44:22.879599"
+  },
+  "modules\\cxp\\parser.py": {
+    "hash": "2df7bd9bba80d8a8f7dd8be62b07b381",
+    "size": 14705,
+    "modified": "2026-08-08T16:33:16.310161"
+  },
+  "modules\\cxp\\routes.py": {
+    "hash": "b6005eeee7b3f6ffec9e8d7f6b5ef278",
+    "size": 28169,
+    "modified": "2026-08-08T16:34:05.163660"
+  },
+  "modules\\cxp\\__init__.py": {
+    "hash": "ebf5a8ab3b68a0f827b3098c2e191c29",
+    "size": 442,
+    "modified": "2026-08-08T16:50:32.526334"
+  },
+  "modules\\reportes\\config_clientes.py": {
+    "hash": "317c47480f729fc1313164338b635110",
+    "size": 5175,
+    "modified": "2026-07-26T11:18:58.581146"
+  },
+  "modules\\reportes\\routes.py": {
+    "hash": "6ca87ab6572a938e66a2cb6b4c256150",
+    "size": 29085,
+    "modified": "2026-08-08T19:53:46.457887"
+  },
+  "modules\\reportes\\__init__.py": {
+    "hash": "89b33dad61ed8cb5cf3d91274b438ad4",
+    "size": 89,
+    "modified": "2026-06-29T10:23:35.148968"
+  },
+  "modules\\shared\\admin_api.py": {
+    "hash": "0111a805bb63f41eb3a87aab5cda875c",
+    "size": 20816,
+    "modified": "2026-08-08T19:44:53.532815"
+  },
+  "modules\\shared\\auth.py": {
+    "hash": "f50f550f37bb3e406e76463f4cbb7a40",
+    "size": 9621,
+    "modified": "2026-08-08T16:25:43.361918"
+  },
+  "modules\\shared\\auth_windows.py": {
+    "hash": "0cf59bf8cca27f7ba4222065b1716224",
+    "size": 10905,
+    "modified": "2026-08-08T19:34:34.897552"
+  },
+  "modules\\shared\\dashboard.py": {
+    "hash": "7935ac87bdbca53f7aa60dc2839aec8e",
+    "size": 8076,
+    "modified": "2026-08-26T19:23:02.540104"
+  },
+  "modules\\shared\\database.py": {
+    "hash": "23baef6c2400237ba4a9a0db388e10f2",
+    "size": 7985,
+    "modified": "2026-08-08T16:49:42.093451"
+  },
+  "modules\\shared\\decorators.py": {
+    "hash": "1eb1b51b4b3f2eb70a256819edeaa84a",
+    "size": 11681,
+    "modified": "2026-08-08T16:32:22.472109"
+  },
+  "modules\\shared\\middleware.py": {
+    "hash": "78f2858d4877b100362f065150dab9b9",
+    "size": 6243,
+    "modified": "2026-08-08T19:34:52.667817"
+  },
+  "modules\\shared\\permisos.py": {
+    "hash": "34f0f9fa945ab8c0bfa338c148094a72",
+    "size": 6731,
+    "modified": "2026-08-08T16:38:07.891131"
+  },
+  "modules\\shared\\routes.py": {
+    "hash": "62d94e47c26f9a73e5ac16cb3add428a",
+    "size": 6596,
+    "modified": "2026-08-27T14:44:39.843579"
+  },
+  "modules\\shared\\usuarios.py": {
+    "hash": "df2a0d477ebf04dc15bcb4b75d52676a",
+    "size": 33524,
+    "modified": "2026-08-08T19:33:00.330574"
+  },
+  "modules\\shared\\utils.py": {
+    "hash": "74f232098aa68d208a4fe4bd8d51ee3e",
+    "size": 5046,
+    "modified": "2026-08-08T16:50:00.238128"
+  },
+  "modules\\shared\\__init__.py": {
+    "hash": "845c2dac4c836b36faec237ccd3cba2b",
+    "size": 347,
+    "modified": "2026-06-28T18:09:50.314275"
+  },
+  "modules\\stock\\routes.py": {
+    "hash": "dbe2be22070905595d918c624ce15ad2",
+    "size": 67861,
+    "modified": "2026-08-08T19:37:39.481945"
+  },
+  "modules\\stock\\__init__.py": {
+    "hash": "e17ad39989b68171268f37e1c9baca81",
+    "size": 237,
+    "modified": "2026-08-08T16:50:15.759720"
+  },
+  "scripts\\audit.py": {
+    "hash": "62bc96e1608028cc88eef8b9140fcc82",
+    "size": 21054,
+    "modified": "2026-08-08T19:32:17.981074"
+  },
+  "scripts\\deploy_update.py": {
+    "hash": "941e0f6b376671653e2ecf05ffdc4d8f",
+    "size": 14395,
+    "modified": "2026-08-07T22:06:29.617962"
+  },
+  "scripts\\generar_update.py": {
+    "hash": "a1ed535751d672cce61804409a3e24d1",
+    "size": 7120,
+    "modified": "2026-08-10T21:59:47.237159"
+  },
+  "scripts\\installer.py": {
+    "hash": "120f3b86f80bd0fc9a687be135ee745a",
+    "size": 10272,
+    "modified": "2026-08-08T16:28:49.097301"
+  },
+  "SidesysERP.egg-info\\dependency_links.txt": {
+    "hash": "68b329da9893e34099c7d8ad5cb9c940",
+    "size": 1,
+    "modified": "2026-08-08T20:27:09.859324"
+  },
+  "SidesysERP.egg-info\\SOURCES.txt": {
+    "hash": "c1b2cf53174b8fd86fa6c20cf8649286",
+    "size": 154,
+    "modified": "2026-08-08T20:27:10.003389"
+  },
+  "SidesysERP.egg-info\\top_level.txt": {
+    "hash": "68b329da9893e34099c7d8ad5cb9c940",
+    "size": 1,
+    "modified": "2026-08-08T20:27:09.871407"
+  },
+  "tesseract\\ambiguous_words.1.html": {
+    "hash": "b79f037021f0dad0bfae194a39a29c35",
+    "size": 17823,
+    "modified": "2024-11-11T04:25:48"
+  },
+  "tesseract\\ambiguous_words.exe": {
+    "hash": "bfa29463ca6a72ee2ae387502a499795",
+    "size": 59528,
+    "modified": "2024-11-11T04:25:48"
+  },
+  "tesseract\\classifier_tester.1.html": {
+    "hash": "592a41340cd07568fe900b4e67d9a76a",
+    "size": 19529,
+    "modified": "2024-11-11T04:25:48"
+  },
+  "tesseract\\classifier_tester.exe": {
+    "hash": "a9f8c797cd1c98fbb856e3eabb5b1a5a",
+    "size": 205960,
+    "modified": "2024-11-11T04:25:58"
+  },
+  "tesseract\\cntraining.1.html": {
+    "hash": "ad622b005553df28625cd1b665888174",
+    "size": 18156,
+    "modified": "2024-11-11T04:25:48"
+  },
+  "tesseract\\cntraining.exe": {
+    "hash": "8d5b0da79a154a83673652ebc43779f1",
+    "size": 206984,
+    "modified": "2024-11-11T04:26:04"
+  },
+  "tesseract\\combine_lang_model.1.html": {
+    "hash": "32f1902bff19bd740b104efb63c22488",
+    "size": 21055,
+    "modified": "2024-11-11T04:25:44"
+  },
+  "tesseract\\combine_lang_model.exe": {
+    "hash": "e457a359becce1c448cef07a3c5bce56",
+    "size": 139400,
+    "modified": "2024-11-11T04:26:10"
+  },
+  "tesseract\\combine_tessdata.1.html": {
+    "hash": "5157be2d6d4b4703e93a20e1fc1f369f",
+    "size": 27130,
+    "modified": "2024-11-11T04:25:44"
+  },
+  "tesseract\\combine_tessdata.exe": {
+    "hash": "7424965c45702d8487bf8783b15c6405",
+    "size": 64648,
+    "modified": "2024-11-11T04:26:16"
+  },
+  "tesseract\\dawg2wordlist.1.html": {
+    "hash": "ccba794416244a937d1e8b82183be313",
+    "size": 18336,
+    "modified": "2024-11-11T04:25:44"
+  },
+  "tesseract\\dawg2wordlist.exe": {
+    "hash": "241e015cca220675d5c12008f9cabff7",
+    "size": 57992,
+    "modified": "2024-11-11T04:26:22"
+  },
+  "tesseract\\lstmeval.1.html": {
+    "hash": "6954b701b8bb4151c78f4be98346da45",
+    "size": 19519,
+    "modified": "2024-11-11T04:25:46"
+  },
+  "tesseract\\lstmeval.exe": {
+    "hash": "de44476307d3c110c67c42106ce1608c",
+    "size": 304776,
+    "modified": "2024-11-11T04:26:28"
+  },
+  "tesseract\\lstmtraining.1.html": {
+    "hash": "364b1705b63e30c11ac96363c94dd56d",
+    "size": 22643,
+    "modified": "2024-11-11T04:25:46"
+  },
+  "tesseract\\lstmtraining.exe": {
+    "hash": "aabdd5c0af216fa3eeb7d6bd384f47f2",
+    "size": 316040,
+    "modified": "2024-11-11T04:26:34"
+  },
+  "tesseract\\merge_unicharsets.1.html": {
+    "hash": "aca9061c4448ea6b1c8bf573f8caf8f0",
+    "size": 18944,
+    "modified": "2024-11-11T04:25:46"
+  },
+  "tesseract\\merge_unicharsets.exe": {
+    "hash": "95165624879d199f542a732679fb5e3b",
+    "size": 55944,
+    "modified": "2024-11-11T04:26:40"
+  },
+  "tesseract\\mftraining.1.html": {
+    "hash": "40c84f34def693213ad5dd1bf7995592",
+    "size": 19427,
+    "modified": "2024-11-11T04:25:48"
+  },
+  "tesseract\\mftraining.exe": {
+    "hash": "f116ebefffbd9c641cc70bef8b3fe756",
+    "size": 216712,
+    "modified": "2024-11-11T04:26:46"
+  },
+  "tesseract\\set_unicharset_properties.1.html": {
+    "hash": "740f854f25912f1da00d2519ae41adf4",
+    "size": 19109,
+    "modified": "2024-11-11T04:25:46"
+  },
+  "tesseract\\set_unicharset_properties.exe": {
+    "hash": "5201ff1af146c5747fcc0eb0d16ccc3d",
+    "size": 253064,
+    "modified": "2024-11-11T04:26:52"
+  },
+  "tesseract\\shapeclustering.1.html": {
+    "hash": "351555f81844b4f43729b9ba2234c0bf",
+    "size": 19448,
+    "modified": "2024-11-11T04:25:48"
+  },
+  "tesseract\\shapeclustering.exe": {
+    "hash": "fcc4b8638c0ad9e2c22f8fe1057ae0f2",
+    "size": 205960,
+    "modified": "2024-11-11T04:26:58"
+  },
+  "tesseract\\tesseract-uninstall.exe": {
+    "hash": "140682cf619cbbab7c7b25dc49ebcc85",
+    "size": 154888,
+    "modified": "2026-06-23T09:42:22.461830"
+  },
+  "tesseract\\tesseract.1.html": {
+    "hash": "2f3e9258df15e5c341a9dea90c80d269",
+    "size": 42220,
+    "modified": "2024-11-11T04:25:46"
+  },
+  "tesseract\\tesseract.exe": {
+    "hash": "909620ccbeb6e71ade7ca94212da8a77",
+    "size": 86152,
+    "modified": "2024-11-11T04:34:46"
+  },
+  "tesseract\\text2image.1.html": {
+    "hash": "20d6fb679e0ef7d899a31f6ce677ceae",
+    "size": 25663,
+    "modified": "2024-11-11T04:25:46"
+  },
+  "tesseract\\text2image.exe": {
+    "hash": "06b98d07319025f90726c3bc1515b9e5",
+    "size": 368264,
+    "modified": "2024-11-11T04:27:10"
+  },
+  "tesseract\\unicharambigs.5.html": {
+    "hash": "4c77efa9d9157125f4ca8a47b1e2fab1",
+    "size": 21249,
+    "modified": "2024-11-11T04:25:48"
+  },
+  "tesseract\\unicharset.5.html": {
+    "hash": "add858b22059097884e051b23d6804c8",
+    "size": 23829,
+    "modified": "2024-11-11T04:25:46"
+  },
+  "tesseract\\unicharset_extractor.1.html": {
+    "hash": "80d8793c79fad44eabdce71c6d2909e2",
+    "size": 18811,
+    "modified": "2024-11-11T04:25:46"
+  },
+  "tesseract\\unicharset_extractor.exe": {
+    "hash": "3b08a66aa7442fb5512ac3db9b4afdd4",
+    "size": 145544,
+    "modified": "2024-11-11T04:27:16"
+  },
+  "tesseract\\winpath.exe": {
+    "hash": "b40ba57cfcb56d74e00c30ba03a959d1",
+    "size": 17602,
+    "modified": "2024-11-11T04:37:34"
+  },
+  "tesseract\\wordlist2dawg.1.html": {
+    "hash": "531355ca6b05220053715e73f94b8cb1",
+    "size": 19492,
+    "modified": "2024-11-11T04:25:48"
+  },
+  "tesseract\\wordlist2dawg.exe": {
+    "hash": "4bb7ec55817dff0ac9e5470736ac521a",
+    "size": 92808,
+    "modified": "2024-11-11T04:27:22"
+  },
+  "vscode\\settings.json": {
+    "hash": "0a72193f9980c84b3290366e85d899e4",
+    "size": 394,
+    "modified": "2026-08-03T22:53:04.861262"
+  }
+}

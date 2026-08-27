@@ -1,7 +1,7 @@
 ﻿============================================================
   REGISTRO DE PUBLICACION - ADM-ERP
 ============================================================
-Fecha de publicacion: 2026-08-27 17:04:23
+Fecha de publicacion: 2026-08-27 20:05:09
 Version: 1.0.1
 Publicado por: pmolina
 Equipo: HQADM0023
@@ -18,7 +18,7 @@ Changelog:
 Archivos publicados:
   - ADM-ERP_Setup_Latest.exe (sobrescrito)
   - version.json (sobrescrito)
-  - updates/update_1.0.1.zip (nuevo)
+  - updates/1.0.1/ (completo: manifest, archivos individuales, ZIP)
 
 Politica de retencion:
   - Instalador: Solo la ultima version (Latest)
