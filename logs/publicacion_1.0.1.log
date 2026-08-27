@@ -1,19 +1,18 @@
 ﻿============================================================
   REGISTRO DE PUBLICACION - ADM-ERP
 ============================================================
-Fecha de publicacion: 2026-08-23 14:09:27
+Fecha de publicacion: 2026-08-27 17:04:23
 Version: 1.0.1
 Publicado por: pmolina
 Equipo: HQADM0023
 
 Changelog:
-🔧 Fix: Sistema de actualizaciones
-   - updater.py guarda la versión en version.txt en la carpeta de instalación.
-   - El instalador crea version.txt con la versión base 1.0.0.
-🧹 Separación de módulos Stock y Reportes
-   - El reporte 'Ventas por País' se carga bajo demanda.
-📱 Fix: Notificación de actualización persistente
-   - El frontend guarda la versión en localStorage y solo muestra el cartel si hay una versión remota mayor.
+✅ Dashboard completo con stock, ventas y contratos
+🔔 Sistema de notificaciones globales (badge y polling)
+📊 Consultas optimizadas para el Dashboard
+🎨 Estilos específicos para Dashboard
+🐛 Correcciones menores en rutas y consultas
+📝 Documentación actualizada
 
 ============================================================
 Archivos publicados:
