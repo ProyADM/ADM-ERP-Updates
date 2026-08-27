@@ -11,6 +11,7 @@ import threading
 import json
 import hashlib
 import shutil
+import winreg  # 🔴 NUEVO: Para leer el registro de Windows
 from flask import Flask, send_from_directory, jsonify, request, g, session
 from flask_cors import CORS
 from flask_session import Session
@@ -38,6 +39,30 @@ if not SECRET_KEY:
 APP_VERSION = "1.0.1"
 VERSION_URL = "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/version.json"
 UPDATE_URL = "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/updates/"
+
+# ============================================================
+# FUNCIÓN PARA OBTENER LA RUTA DE INSTALACIÓN REAL
+# ============================================================
+def obtener_ruta_instalacion():
+    """
+    Obtiene la ruta de instalación real desde el registro de Windows.
+    Si no existe, usa el directorio del script actual (fallback).
+    """
+    try:
+        # Buscar en el registro de usuario
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Sidesys\ADM-ERP")
+        path, _ = winreg.QueryValueEx(key, "InstallPath")
+        winreg.CloseKey(key)
+        if os.path.isdir(path):
+            print(f"📂 Ruta de instalación detectada: {path}")
+            return path
+    except WindowsError:
+        pass
+    
+    # Fallback: directorio del script
+    fallback = os.path.dirname(os.path.abspath(__file__))
+    print(f"⚠️ No se encontró ruta de instalación en el registro, usando: {fallback}")
+    return fallback
 
 # ============================================================
 # IMPORTAR BLUEPRINTS
@@ -143,7 +168,7 @@ def descargar_archivos_diferenciales(version_info):
         manifest_remoto = response.json()
         
         archivos_actualizar = []
-        app_dir = os.path.dirname(os.path.abspath(__file__))
+        app_dir = obtener_ruta_instalacion()  # 🔴 CAMBIO: usar ruta de instalación real
         
         for file_path, info_remoto in manifest_remoto.items():
             local_path = os.path.join(app_dir, file_path)
@@ -228,7 +253,7 @@ def instalar_actualizacion_diferencial():
         backup_path = os.path.join(BACKUP_DIR, timestamp)
         os.makedirs(backup_path, exist_ok=True)
         
-        app_dir = os.path.dirname(os.path.abspath(__file__))
+        app_dir = obtener_ruta_instalacion()  # 🔴 CAMBIO: usar ruta de instalación real
         
         # Backup de archivos existentes
         for root, dirs, files in os.walk(app_dir):
@@ -271,7 +296,7 @@ def restaurar_backup():
         backups = sorted([d for d in os.listdir(BACKUP_DIR) if os.path.isdir(os.path.join(BACKUP_DIR, d))])
         if backups:
             last_backup = os.path.join(BACKUP_DIR, backups[-1])
-            app_dir = os.path.dirname(os.path.abspath(__file__))
+            app_dir = obtener_ruta_instalacion()  # 🔴 CAMBIO: usar ruta de instalación real
             
             print(f"🔄 Restaurando backup: {last_backup}")
             for root, dirs, files in os.walk(last_backup):
