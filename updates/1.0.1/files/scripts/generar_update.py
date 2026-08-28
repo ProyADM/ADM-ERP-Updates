@@ -16,6 +16,7 @@ from pathlib import Path
 def generar_manifest_completo():
     """
     Genera el manifest.json con todos los archivos de la aplicación (SHA-256)
+    Las rutas se guardan con '/' (formato URL) en lugar de '\'
     """
     app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     manifest = {}
@@ -32,7 +33,8 @@ def generar_manifest_completo():
         for file in files:
             if any(file.endswith(ext) for ext in extensiones):
                 file_path = os.path.join(root, file)
-                rel_path = os.path.relpath(file_path, app_dir)
+                # 🔴 CORRECCIÓN: reemplazar \ por / para rutas web
+                rel_path = os.path.relpath(file_path, app_dir).replace('\\', '/')
                 
                 with open(file_path, 'rb') as f:
                     content = f.read()

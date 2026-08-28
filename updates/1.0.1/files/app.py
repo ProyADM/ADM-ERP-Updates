@@ -148,6 +148,8 @@ def check_actualizaciones():
         print(f"[WARN] No se pudo verificar actualizaciones: {e}")
         return False, None
 
+# app.py (solo la parte modificada, pero te entrego el archivo completo más abajo)
+
 def descargar_archivos_diferenciales(version_info):
     """Descarga SOLO los archivos que cambiaron"""
     try:
@@ -168,7 +170,7 @@ def descargar_archivos_diferenciales(version_info):
         manifest_remoto = response.json()
         
         archivos_actualizar = []
-        app_dir = obtener_ruta_instalacion()  # 🔴 CAMBIO: usar ruta de instalación real
+        app_dir = obtener_ruta_instalacion()
         
         for file_path, info_remoto in manifest_remoto.items():
             local_path = os.path.join(app_dir, file_path)
@@ -188,7 +190,9 @@ def descargar_archivos_diferenciales(version_info):
         
         archivos_descargados = []
         for file_path in archivos_actualizar:
-            file_url = f"{files_url}/{file_path}"
+            # 🔴 CORRECCIÓN: normalizar la ruta para URL (reemplazar \ por /)
+            file_path_normalized = file_path.replace('\\', '/')
+            file_url = f"{files_url}/{file_path_normalized}"
             try:
                 response = requests.get(file_url, timeout=30)
                 response.raise_for_status()
