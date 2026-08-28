@@ -839,9 +839,11 @@ function instalarActualizacion() {
                 localStorage.setItem('lastUpdate', new Date().toISOString());
                 console.log(`💾 Versión ${nuevaVersion} guardada en localStorage`);
                 
+                fetch('/api/reiniciar', { method: 'POST' }).catch(() => {});
+
                 setTimeout(() => {
                     location.reload();
-                }, 2000);
+                }, 6000);
             }, 8000);
             
         } else {
@@ -983,9 +985,6 @@ window.obtenerUsuarioActual = obtenerUsuarioActual;
 
 // ✅ NUEVO: Exportar función de carga inicial de CXP
 window.cargarCXPInicial = cargarCXPInicial;
-
-// Al final de app.js
-window.iniciarNotificaciones = iniciarNotificaciones;
 
 console.log('✅ app.js cargado correctamente (XSS sanitizado)');
 console.log('📂 Estructura: frontend/modules/');

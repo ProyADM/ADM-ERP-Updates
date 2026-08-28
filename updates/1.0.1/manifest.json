@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "hash": "29f41490786237deba401be076973fe3603368372bcd640aa3aeb00b32f2db85",
-    "size": 37237
+    "hash": "1b63a3de3e75f303725b96ade3bb727bb547de922db4c1de4ac0a13a89b6bd67",
+    "size": 38208
   },
   "changelog_temp.txt": {
     "hash": "e49b1fa3f4d0fd159f4a493050e2c3662f7a009e2cbdf13e51e467cfab28b6a5",
@@ -36,12 +36,12 @@
     "size": 21003
   },
   "version.json": {
-    "hash": "6364a181e01d7a7aca4016b69d53d253ee40fb678c4c55d99f69c1d351a4165c",
-    "size": 990
+    "hash": "556cd759766171bb1aa5309a930688cda4cfad293d6663edd31d04ef4827a9ba",
+    "size": 976
   },
   "frontend\\app.js": {
-    "hash": "267b3b81c6438e68113d6486bc2564fb7269a2cd75cd7ab73ab898ee2f3cccc4",
-    "size": 34760
+    "hash": "c72aa9976c50974d0d32a5f263077f4a6bdf24ed8f56ff82729a6deb392ef9e9",
+    "size": 34761
   },
   "frontend\\index.html": {
     "hash": "85819647be4cc59f42daf41eae42dd111acf01d817aa29a6645fc0f6fd4ed189",

@@ -542,7 +542,7 @@ def _verificar_autenticacion():
         '/frontend/', '/app.js', '/style.css', '/favicon.ico',
         '/api/test', '/api/__version', '/api/version', 
         '/api/check_update', '/api/download_update', '/api/update/check',
-        '/api/update/install', '/api/update/notification',
+        '/api/update/install', '/api/update/notification', '/api/reiniciar',
         '/api/dashboard/actividad'
     ]
     
@@ -817,6 +817,31 @@ def api_update_check():
 def api_update_install():
     """Instala actualización desde el frontend"""
     return api_download_update()
+
+@app.route('/api/reiniciar', methods=['POST'])
+def api_reiniciar():
+    """Mata el proceso python actual y relanza la app vía el .vbs de inicio"""
+    try:
+        app_dir = obtener_ruta_instalacion()
+        vbs_path = os.path.join(app_dir, "Iniciar_ADM-ERP.vbs")
+        pid_actual = os.getpid()
+
+        if not os.path.exists(vbs_path):
+            return jsonify({'error': f'No se encontró {vbs_path}'}), 500
+
+        # Comando diferido: espera a que este proceso responda, lo mata y relanza el .vbs
+        cmd = f'timeout /t 2 /nobreak & taskkill /F /PID {pid_actual} & start "" wscript.exe "{vbs_path}"'
+
+        subprocess.Popen(
+            ["cmd", "/c", cmd],
+            creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
+            close_fds=True,
+            cwd=app_dir
+        )
+
+        return jsonify({'status': 'reiniciando'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/favicon.ico')
 def favicon():
