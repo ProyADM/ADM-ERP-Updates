@@ -1,6 +1,0 @@
-﻿✅ Dashboard completo con stock, ventas y contratos
-🔔 Sistema de notificaciones globales (badge y polling)
-📊 Consultas optimizadas para el Dashboard
-🎨 Estilos específicos para Dashboard
-🐛 Correcciones menores en rutas y consultas
-📝 Documentación actualizada

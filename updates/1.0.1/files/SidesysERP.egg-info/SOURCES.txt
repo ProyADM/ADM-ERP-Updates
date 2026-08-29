@@ -1,5 +1,0 @@
-setup_installer.py
-SidesysERP.egg-info/PKG-INFO
-SidesysERP.egg-info/SOURCES.txt
-SidesysERP.egg-info/dependency_links.txt
-SidesysERP.egg-info/top_level.txt
