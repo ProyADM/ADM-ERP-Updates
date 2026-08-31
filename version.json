@@ -1,12 +1,14 @@
 {
   "version": "1.0.0",
-  "release_date": "2026-08-29 00:00:00",
+  "release_date": "2026-08-31 00:00:00",
   "changelog": [
     "✅ Versión base con Dashboard completo",
-    "🔔 Sistema de notificaciones globales",
-    "📊 Consultas optimizadas",
-    "🐛 Correcciones en el sistema de actualizaciones",
-    "🔧 Instalador con registro y acceso directo corregidos"
+    "🔔 Sistema de notificaciones globales (badge y polling)",
+    "📊 Consultas optimizadas para el Dashboard",
+    "🎨 Estilos específicos para Dashboard",
+    "🐛 Correcciones menores en rutas y consultas",
+    "📝 Documentación actualizada",
+    "🔧 Instalador con detección de Python y dependencias automáticas"
   ],
   "checksum": "",
   "download_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/updates/update_1.0.0.zip",
