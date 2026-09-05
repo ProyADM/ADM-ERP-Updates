@@ -1,0 +1,7 @@
+# C5 - Firmas Ed25519 del canal de actualizacion (sidecar .sig).
+# Estos archivos se firman por BYTES EXACTOS: el blob publicado en GitHub debe
+# ser identico a lo firmado en disco. Prohibir cualquier conversion de fin de
+# linea (CRLF/LF) para version.json, los manifests y los propios .sig.
+version.json -text
+updates/**/manifest.json -text
+*.sig -text
