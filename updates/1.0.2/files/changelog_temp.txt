@@ -1,0 +1,2 @@
+﻿+ Prueba del sistema de actualizaciones con polling real
++ Cambio de título en frontend
