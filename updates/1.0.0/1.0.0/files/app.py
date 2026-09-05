@@ -1,0 +1,933 @@
+# app.py
+# ============================================================
+# SIDESYS ERP - APLICACIÓN PRINCIPAL (CON PANEL ADMIN Y UPDATER)
+# ============================================================
+
+import os
+import sys
+import time
+import subprocess
+import threading
+import json
+import hashlib
+import shutil
+import winreg
+from flask import Flask, send_from_directory, jsonify, request, g, session
+from flask_cors import CORS
+from flask_session import Session
+import secrets
+
+# ============================================================
+# CONFIGURACIÓN DE SESIÓN SEGURA
+# ============================================================
+FLASK_ENV = os.environ.get('FLASK_ENV', 'development')
+SECRET_KEY = os.environ.get('SESSION_SECRET_KEY')
+
+if not SECRET_KEY:
+    if FLASK_ENV == 'production':
+        raise ValueError(
+            "❌ SESSION_SECRET_KEY es OBLIGATORIA en producción.\n"
+            "   Define SESSION_SECRET_KEY en .env.production"
+        )
+    SECRET_KEY = secrets.token_hex(32)
+    print(f"[WARN] No se encontró SESSION_SECRET_KEY en .env, usando clave generada temporalmente")
+    print(f"[WARN] Las sesiones se reiniciarán al reiniciar el servidor")
+
+# ============================================================
+# VERSIÓN DE LA APLICACIÓN
+# ============================================================
+APP_VERSION = "1.0.0"  # Base para instalador limpio
+VERSION_URL = "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/version.json"
+UPDATE_URL = "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/updates/"
+
+# ============================================================
+# FUNCIÓN PARA OBTENER LA RUTA DE INSTALACIÓN REAL
+# ============================================================
+def obtener_ruta_instalacion():
+    try:
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Sidesys\ADM-ERP")
+        path, _ = winreg.QueryValueEx(key, "InstallPath")
+        winreg.CloseKey(key)
+        if os.path.isdir(path):
+            print(f"📂 Ruta de instalación detectada: {path}")
+            return path
+    except WindowsError:
+        pass
+    fallback = os.path.dirname(os.path.abspath(__file__))
+    print(f"⚠️ No se encontró ruta de instalación en el registro, usando: {fallback}")
+    return fallback
+
+# ============================================================
+# IMPORTAR BLUEPRINTS
+# ============================================================
+from modules.stock import stock_bp
+from modules.cxp import cxp_bp
+from modules.cotizaciones import cotizaciones_bp
+from modules.shared.routes import shared_bp
+from modules.shared.database import set_contexto_base
+from modules.reportes import reportes_bp
+from config import BASE_DEFAULT, SOCIEDAD_DEFAULT
+from modules.shared.dashboard import dashboard_bp
+from modules.shared.auth import auth_bp
+from modules.shared.auth_windows import get_current_windows_user, validar_sesion
+from modules.shared.admin_api import admin_bp
+
+# ============================================================
+# FUNCIONES DE ACTUALIZACIÓN (INTEGRADAS DIRECTAMENTE)
+# ============================================================
+
+PROGRAM_DATA = os.environ.get("PROGRAMDATA", "C:\\ProgramData")
+UPDATE_DIR = os.path.join(PROGRAM_DATA, "SidesysERP", "updates")
+BACKUP_DIR = os.path.join(PROGRAM_DATA, "SidesysERP", "backups")
+VERSION_FILE = os.path.join(PROGRAM_DATA, "SidesysERP", "version.txt")
+UPDATE_STATUS_FILE = os.path.join(PROGRAM_DATA, "SidesysERP", "update_status.json")
+
+def guardar_estado_actualizacion(estado, mensaje='', version=None, error=None):
+    try:
+        os.makedirs(os.path.dirname(UPDATE_STATUS_FILE), exist_ok=True)
+        with open(UPDATE_STATUS_FILE, 'w', encoding='utf-8') as f:
+            json.dump({
+                'estado': estado,
+                'mensaje': mensaje,
+                'version': version,
+                'error': error,
+                'timestamp': time.time()
+            }, f)
+    except Exception as e:
+        print(f"⚠️ No se pudo escribir el estado de actualización: {e}")
+
+def obtener_version_actual():
+    if os.path.exists(VERSION_FILE):
+        try:
+            with open(VERSION_FILE, 'r', encoding='utf-8') as f:
+                for line in f:
+                    if line.startswith("Versión:"):
+                        return line.split(":")[1].strip()
+        except:
+            pass
+    return APP_VERSION
+
+def guardar_version(version):
+    os.makedirs(os.path.dirname(VERSION_FILE), exist_ok=True)
+    with open(VERSION_FILE, 'w', encoding='utf-8') as f:
+        f.write(f"Versión: {version}\n")
+        f.write(f"Actualizado: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+
+def comparar_versiones(v1: str, v2: str) -> int:
+    def parse_version(v):
+        v = v.replace('v', '').strip()
+        parts = v.split('.')
+        while len(parts) < 3:
+            parts.append('0')
+        return [int(p) for p in parts[:3]]
+    v1_parts = parse_version(v1)
+    v2_parts = parse_version(v2)
+    for i in range(3):
+        if v1_parts[i] < v2_parts[i]:
+            return -1
+        elif v1_parts[i] > v2_parts[i]:
+            return 1
+    return 0
+
+def check_actualizaciones():
+    try:
+        import requests
+        response = requests.get(VERSION_URL, timeout=10)
+        response.raise_for_status()
+        version_info = response.json()
+        version_remota = version_info.get('version', '0.0.0')
+        version_actual = obtener_version_actual()
+        if comparar_versiones(version_actual, version_remota) < 0:
+            return True, version_info
+        return False, version_info
+    except Exception as e:
+        print(f"[WARN] No se pudo verificar actualizaciones: {e}")
+        return False, None
+
+def descargar_archivos_diferenciales(version_info):
+    try:
+        import requests
+        version_remota = version_info.get('version')
+        manifest_url = version_info.get('manifest_url')
+        files_url = version_info.get('files_url')
+        deleted_url = version_info.get('deleted_url')
+
+        if not manifest_url or not files_url:
+            success, archivos = descargar_actualizacion_completa(version_info)
+            return success, archivos, []
+
+        print(f"📥 Descargando manifest de versión {version_remota}...")
+        response = requests.get(manifest_url, timeout=10)
+        response.raise_for_status()
+        manifest_remoto = response.json()
+
+        archivos_eliminar = []
+        if deleted_url:
+            try:
+                resp_del = requests.get(deleted_url, timeout=10)
+                resp_del.raise_for_status()
+                archivos_eliminar = resp_del.json() or []
+            except Exception as e:
+                print(f"⚠️ No se pudo obtener deleted.json: {e}")
+
+        archivos_actualizar = []
+        app_dir = obtener_ruta_instalacion()
+
+        for file_path, info_remoto in manifest_remoto.items():
+            local_path = os.path.join(app_dir, file_path)
+            if os.path.exists(local_path):
+                with open(local_path, 'rb') as f:
+                    local_hash = hashlib.sha256(f.read()).hexdigest()
+                if info_remoto['hash'] != local_hash:
+                    archivos_actualizar.append(file_path)
+            else:
+                archivos_actualizar.append(file_path)
+
+        if not archivos_actualizar:
+            print("✅ No hay archivos que actualizar")
+            return True, [], archivos_eliminar
+
+        print(f"📥 Descargando {len(archivos_actualizar)} archivos modificados...")
+        archivos_descargados = []
+        total_archivos = len(archivos_actualizar)
+        for idx, file_path in enumerate(archivos_actualizar, start=1):
+            file_path_normalized = file_path.replace('\\', '/')
+            file_url = f"{files_url.rstrip('/')}/{file_path_normalized}"
+            guardar_estado_actualizacion(
+                'descargando',
+                f'Descargando archivo {idx}/{total_archivos}: {file_path_normalized}',
+                version=version_remota
+            )
+            try:
+                response = requests.get(file_url, timeout=30)
+                response.raise_for_status()
+                temp_file = os.path.join(UPDATE_DIR, file_path)
+                os.makedirs(os.path.dirname(temp_file), exist_ok=True)
+                with open(temp_file, 'wb') as f:
+                    f.write(response.content)
+                archivos_descargados.append({
+                    'path': file_path,
+                    'size': len(response.content)
+                })
+                print(f"   ✓ {file_path} ({len(response.content)} bytes)")
+            except Exception as e:
+                print(f"   ✗ Error descargando {file_path}: {e}")
+                return False, [], []
+
+        return True, archivos_descargados, archivos_eliminar
+
+    except Exception as e:
+        print(f"❌ Error en descarga diferencial: {e}")
+        return False, [], []
+
+def descargar_actualizacion_completa(version_info):
+    try:
+        import requests, zipfile
+        download_url = version_info.get('download_url')
+        if not download_url:
+            return False, []
+        print(f"📥 Descargando actualización completa...")
+        response = requests.get(download_url, stream=True, timeout=60)
+        response.raise_for_status()
+        zip_path = os.path.join(UPDATE_DIR, f"update_{version_info['version']}.zip")
+        os.makedirs(UPDATE_DIR, exist_ok=True)
+        with open(zip_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+        print("📦 Extrayendo archivos...")
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(UPDATE_DIR)
+        os.remove(zip_path)
+        return True, []
+    except Exception as e:
+        print(f"❌ Error descargando actualización completa: {e}")
+        return False, []
+
+def instalar_actualizacion_diferencial(archivos_eliminar=None):
+    try:
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        backup_path = os.path.join(BACKUP_DIR, timestamp)
+        os.makedirs(backup_path, exist_ok=True)
+
+        app_dir = obtener_ruta_instalacion()
+
+        # Backup de archivos existentes
+        for root, dirs, files in os.walk(app_dir):
+            for file in files:
+                if file.endswith(('.py', '.js', '.css', '.html', '.json', '.txt')):
+                    src = os.path.join(root, file)
+                    rel = os.path.relpath(src, app_dir)
+                    dst = os.path.join(backup_path, rel)
+                    os.makedirs(os.path.dirname(dst), exist_ok=True)
+                    shutil.copy2(src, dst)
+
+        print(f"📁 Backup creado en: {backup_path}")
+
+        # Copiar archivos desde UPDATE_DIR a app_dir
+        archivos_copiados = 0
+        for root, dirs, files in os.walk(UPDATE_DIR):
+            for file in files:
+                src_file = os.path.join(root, file)
+                rel_path = os.path.relpath(src_file, UPDATE_DIR)
+                dst_file = os.path.join(app_dir, rel_path)
+                os.makedirs(os.path.dirname(dst_file), exist_ok=True)
+                shutil.copy2(src_file, dst_file)
+                archivos_copiados += 1
+
+        print(f"✅ {archivos_copiados} archivos copiados correctamente")
+
+        # 🔴 DESACTIVADO: No borrar archivos automáticamente
+        # archivos_borrados = 0
+        # for rel_path in (archivos_eliminar or []):
+        #     target = os.path.join(app_dir, rel_path)
+        #     if os.path.exists(target):
+        #         try:
+        #             os.remove(target)
+        #             archivos_borrados += 1
+        #             print(f"   🗑️ Eliminado: {rel_path}")
+        #         except Exception as e:
+        #             print(f"   ⚠️ No se pudo eliminar {rel_path}: {e}")
+        # if archivos_borrados:
+        #     print(f"✅ {archivos_borrados} archivo(s) obsoleto(s) eliminados")
+
+        limpiar_archivos_temporales()
+        return True
+
+    except Exception as e:
+        print(f"❌ Error instalando actualización: {e}")
+        restaurar_backup()
+        return False
+
+def restaurar_backup():
+    try:
+        backups = sorted([d for d in os.listdir(BACKUP_DIR) if os.path.isdir(os.path.join(BACKUP_DIR, d))])
+        if backups:
+            last_backup = os.path.join(BACKUP_DIR, backups[-1])
+            app_dir = obtener_ruta_instalacion()
+            print(f"🔄 Restaurando backup: {last_backup}")
+            for root, dirs, files in os.walk(last_backup):
+                for file in files:
+                    src = os.path.join(root, file)
+                    rel = os.path.relpath(src, last_backup)
+                    dst = os.path.join(app_dir, rel)
+                    os.makedirs(os.path.dirname(dst), exist_ok=True)
+                    shutil.copy2(src, dst)
+            print("✅ Backup restaurado correctamente")
+            return True
+    except Exception as e:
+        print(f"❌ Error restaurando backup: {e}")
+        return False
+
+def verificar_y_actualizar():
+    print("🔍 Verificando actualizaciones...")
+    hay_actualizacion, version_info = check_actualizaciones()
+    if not hay_actualizacion:
+        print("✅ Ya tienes la última versión")
+        limpiar_archivos_temporales()
+        return None
+    if not version_info:
+        print("⚠️ No se pudo obtener información de versiones")
+        limpiar_archivos_temporales()
+        return None
+
+    version_remota = version_info.get('version')
+    print(f"\n📢 Nueva versión disponible: {version_remota}")
+    print(f"   Versión actual: {obtener_version_actual()}")
+    print(f"   Fecha: {version_info.get('release_date', 'N/A')}")
+    print()
+    print("   Cambios:")
+    for cambio in version_info.get('changelog', []):
+        print(f"   • {cambio}")
+    print()
+
+    print("\n📥 Descargando actualización...")
+    guardar_estado_actualizacion('descargando', 'Iniciando descarga...', version=version_remota)
+
+    archivos_eliminar = []
+    if version_info.get('manifest_url'):
+        success, archivos, archivos_eliminar = descargar_archivos_diferenciales(version_info)
+    else:
+        success, archivos = descargar_actualizacion_completa(version_info)
+
+    if not success:
+        print("❌ Error al descargar la actualización")
+        guardar_estado_actualizacion('error', 'Falló la descarga', version=version_remota, error='descarga')
+        limpiar_archivos_temporales()
+        return None
+
+    print("\n🔄 Instalando actualización...")
+    guardar_estado_actualizacion('instalando', 'Copiando archivos e instalando...', version=version_remota)
+    if not instalar_actualizacion_diferencial(archivos_eliminar):
+        print("❌ Error al instalar la actualización")
+        guardar_estado_actualizacion('error', 'Falló la instalación', version=version_remota, error='instalacion')
+        limpiar_archivos_temporales()
+        return None
+
+    guardar_version(version_remota)
+    limpiar_archivos_temporales()
+    guardar_estado_actualizacion('completado', 'Actualización instalada correctamente', version=version_remota)
+    print(f"\n✅ Actualización a versión {version_remota} completada")
+    return version_info
+
+def limpiar_archivos_temporales():
+    try:
+        if os.path.exists(UPDATE_DIR):
+            for item in os.listdir(UPDATE_DIR):
+                item_path = os.path.join(UPDATE_DIR, item)
+                if os.path.isfile(item_path):
+                    os.remove(item_path)
+                elif os.path.isdir(item_path):
+                    shutil.rmtree(item_path)
+        print("🧹 Archivos temporales limpiados")
+    except Exception as e:
+        print(f"⚠️ Error limpiando archivos: {e}")
+
+# ============================================================
+# CREAR APLICACIÓN FLASK
+# ============================================================
+app = Flask(__name__, static_folder="frontend", static_url_path="")
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+
+app.config['SECRET_KEY'] = SECRET_KEY
+app.config['SESSION_TYPE'] = 'filesystem'
+app.config['SESSION_PERMANENT'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = 86400
+app.config['SESSION_USE_SIGNER'] = True
+app.config['SESSION_KEY_PREFIX'] = 'sidesys_'
+
+Session(app)
+
+ALLOWED_ORIGINS = os.environ.get('ALLOWED_ORIGINS', 'http://localhost:5000,http://127.0.0.1:5000').split(',')
+CORS(app, supports_credentials=True, origins=ALLOWED_ORIGINS)
+
+# ============================================================
+# MIDDLEWARE DE CONTEXTO DE BASE
+# ============================================================
+@app.before_request
+def _resolver_base_activa():
+    base = request.headers.get("X-Base", BASE_DEFAULT)
+    sociedad = request.headers.get("X-Sociedad")
+    set_contexto_base(base, sociedad)
+
+# ============================================================
+# FUNCIONES DE GESTIÓN DE ROLES Y PERMISOS
+# ============================================================
+def cargar_roles():
+    roles_path = os.path.join(os.path.dirname(__file__), 'data', 'roles.json')
+    try:
+        with open(roles_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"[ERROR] No se pudo cargar roles.json: {e}")
+        return {}
+
+def cargar_usuarios():
+    usuarios_path = os.path.join(os.path.dirname(__file__), 'data', 'usuarios.json')
+    try:
+        with open(usuarios_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"[ERROR] No se pudo cargar usuarios.json: {e}")
+        return {}
+
+def obtener_rol_usuario(user_data):
+    if 'rol' in user_data:
+        rol = user_data['rol']
+        if isinstance(rol, list) and len(rol) > 0:
+            return rol[0]
+        return rol
+    if 'roles' in user_data:
+        roles = user_data['roles']
+        if isinstance(roles, list) and len(roles) > 0:
+            return roles[0]
+        return 'usuario'
+    return 'usuario'
+
+def obtener_permisos_rol(rol_nombre):
+    roles = cargar_roles()
+    if rol_nombre in roles:
+        return roles[rol_nombre].get('permisos', [])
+    return []
+
+def obtener_datos_usuario_completo(username):
+    usuarios = cargar_usuarios()
+    user_data = usuarios.get(username, {})
+    if not user_data:
+        return None
+    rol_nombre = obtener_rol_usuario(user_data)
+    permisos = []
+    roles_data = cargar_roles()
+    if rol_nombre in roles_data:
+        permisos = roles_data[rol_nombre].get('permisos', [])
+    if 'permisos_extra' in user_data:
+        permisos.extend(user_data['permisos_extra'])
+    if 'permisos_restringidos' in user_data:
+        for restringido in user_data['permisos_restringidos']:
+            if restringido in permisos:
+                permisos.remove(restringido)
+    es_superadmin = (
+        user_data.get('es_superadmin', False) or
+        rol_nombre == 'superadmin' or
+        'admin.acceso' in permisos
+    )
+    return {
+        'username': user_data.get('username', username),
+        'nombre': user_data.get('nombre', username),
+        'email': user_data.get('email', ''),
+        'rol': rol_nombre,
+        'roles': user_data.get('roles', [rol_nombre]),
+        'permisos': permisos,
+        'es_superadmin': es_superadmin,
+        'activo': user_data.get('activo', True),
+        'bloqueado': user_data.get('bloqueado', False),
+        'bases_permitidas': user_data.get('bases_permitidas', ['*']),
+        'modulos_permitidos': user_data.get('modulos_permitidos', ['*']),
+        'permisos_extra': user_data.get('permisos_extra', []),
+        'permisos_restringidos': user_data.get('permisos_restringidos', [])
+    }
+
+# ============================================================
+# MIDDLEWARE DE AUTENTICACIÓN
+# ============================================================
+@app.before_request
+def _verificar_autenticacion():
+    rutas_publicas = [
+        '/api/auth/login', '/api/auth/login_sso',
+        '/api/auth/check', '/api/auth/logout',
+        '/frontend/', '/app.js', '/style.css', '/favicon.ico',
+        '/api/test', '/api/__version', '/api/version',
+        '/api/check_update', '/api/download_update', '/api/update/check',
+        '/api/update/install', '/api/update/notification', '/api/reiniciar',
+        '/api/dashboard/actividad'
+    ]
+    es_ruta_publica = False
+    for ruta in rutas_publicas:
+        if request.path.startswith(ruta):
+            es_ruta_publica = True
+            break
+    if request.path == '/':
+        es_ruta_publica = True
+
+    if 'username' in session:
+        success, _ = validar_sesion()
+        if success:
+            return None
+        else:
+            session.clear()
+
+    if not request.path.startswith('/api/auth'):
+        username = get_current_windows_user()
+        if username:
+            try:
+                from modules.shared.usuarios import get_users, crear_usuario
+                users = get_users()
+                if username not in users:
+                    crear_usuario(
+                        username=username,
+                        password='',
+                        rol='usuario',
+                        nombre=username,
+                        email=f'{username}@sidesys.com'
+                    )
+                    users = get_users()
+                user = users.get(username, {})
+                if user.get('activo', True):
+                    user_data = obtener_datos_usuario_completo(username)
+                    if user_data:
+                        from modules.shared.auth_windows import crear_sesion
+                        session['username'] = username
+                        session['rol'] = user_data['rol']
+                        session['es_superadmin'] = user_data['es_superadmin']
+                        session['permisos'] = user_data['permisos']
+                        session['user_data'] = user_data
+                        crear_sesion(username, user_data['rol'])
+                    if request.path == '/' or es_ruta_publica:
+                        return None
+            except Exception as e:
+                print(f"[WARN] SSO automático falló: {e}")
+
+    if es_ruta_publica or request.path == '/':
+        return None
+
+    if request.path.startswith('/api/') and not request.path.startswith('/api/auth/'):
+        return jsonify({
+            'error': 'No autenticado',
+            'code': 'UNAUTHORIZED',
+            'login_url': '/'
+        }), 401
+
+# ============================================================
+# REGISTRAR BLUEPRINTS
+# ============================================================
+app.register_blueprint(stock_bp, url_prefix='/api')
+app.register_blueprint(cxp_bp, url_prefix='/api')
+app.register_blueprint(cotizaciones_bp, url_prefix='/api/cotizaciones')
+app.register_blueprint(shared_bp, url_prefix='/api')
+app.register_blueprint(reportes_bp, url_prefix='/api')
+app.register_blueprint(auth_bp, url_prefix='/api/auth')
+app.register_blueprint(admin_bp, url_prefix='/api/admin')
+app.register_blueprint(dashboard_bp)
+
+# ============================================================
+# RUTAS PRINCIPALES
+# ============================================================
+@app.route("/")
+def index():
+    return send_from_directory("frontend", "index.html")
+
+@app.route("/style.css")
+def serve_css():
+    return send_from_directory("frontend", "style.css")
+
+@app.route("/app.js")
+def serve_app_js():
+    return send_from_directory("frontend", "app.js")
+
+@app.route("/frontend/modules/<path:filename>")
+def serve_modules(filename):
+    return send_from_directory("frontend/modules", filename)
+
+@app.route("/frontend/templates/<path:filename>")
+def serve_templates(filename):
+    return send_from_directory("frontend/templates", filename)
+
+@app.route("/frontend/css/<path:filename>")
+def serve_css_files(filename):
+    return send_from_directory("frontend/css", filename)
+
+# ============================================================
+# API - USUARIO ACTUAL
+# ============================================================
+@app.route("/api/auth/current_user", methods=['GET'])
+def api_current_user():
+    if 'username' not in session:
+        return jsonify({'error': 'No autenticado'}), 401
+    username = session['username']
+    user_data = obtener_datos_usuario_completo(username)
+    if not user_data:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+    return jsonify({
+        'success': True,
+        'user': user_data,
+        'session': {
+            'username': session.get('username'),
+            'rol': session.get('rol'),
+            'es_superadmin': session.get('es_superadmin', False)
+        }
+    })
+
+# ============================================================
+# API - VERSIÓN
+# ============================================================
+@app.route("/api/__version")
+def api_version():
+    try:
+        h1 = hashlib.md5(open(__file__, "rb").read()).hexdigest()[:8]
+        h2 = hashlib.md5(open(os.path.join(os.path.dirname(__file__), "frontend/index.html"), "rb").read()).hexdigest()[:8]
+        h3 = hashlib.md5(open(os.path.join(os.path.dirname(__file__), "frontend/style.css"), "rb").read()).hexdigest()[:8]
+        return jsonify({"version": h1 + h2 + h3})
+    except Exception as e:
+        return jsonify({"version": "unknown", "error": str(e)})
+
+@app.route("/api/version")
+def api_version_info():
+    return jsonify({
+        'version': obtener_version_actual(),
+        'check_url': VERSION_URL,
+        'app_version': APP_VERSION
+    })
+
+@app.route("/api/check_update")
+def api_check_update():
+    try:
+        hay, version_info = check_actualizaciones()
+        if hay and version_info:
+            return jsonify({
+                'has_update': True,
+                'version': version_info.get('version'),
+                'release_date': version_info.get('release_date'),
+                'changelog': version_info.get('changelog', []),
+                'current_version': obtener_version_actual()
+            })
+        else:
+            return jsonify({
+                'has_update': False,
+                'message': 'Ya tienes la última versión',
+                'current_version': obtener_version_actual()
+            })
+    except Exception as e:
+        return jsonify({
+            'has_update': False,
+            'error': str(e),
+            'message': 'Error al verificar actualizaciones'
+        }), 500
+
+@app.route("/api/download_update", methods=['POST'])
+def api_download_update():
+    try:
+        hay, version_info = check_actualizaciones()
+        if not hay or not version_info:
+            return jsonify({
+                'success': False,
+                'message': 'No hay actualizaciones disponibles'
+            }), 400
+
+        def update_thread():
+            try:
+                print(f"[UPDATER] Iniciando actualización a versión {version_info['version']}")
+                verificar_y_actualizar()
+            except Exception as e:
+                print(f"[UPDATER] Error en hilo de actualización: {e}")
+                guardar_estado_actualizacion('error', str(e), version=version_info.get('version'), error='excepcion')
+
+        thread = threading.Thread(target=update_thread)
+        thread.daemon = True
+        thread.start()
+
+        return jsonify({
+            'success': True,
+            'message': 'Actualización iniciada en segundo plano',
+            'version': version_info.get('version'),
+            'status': 'downloading'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': 'Error al iniciar la actualización'
+        }), 500
+
+# ============================================================
+# API - NOTIFICACIÓN DE ACTUALIZACIÓN
+# ============================================================
+@app.route('/api/update/notification', methods=['GET'])
+def api_update_notification():
+    try:
+        hay, version_info = check_actualizaciones()
+        if hay and version_info:
+            return jsonify({
+                'has_update': True,
+                'version': version_info.get('version'),
+                'release_date': version_info.get('release_date'),
+                'changelog': version_info.get('changelog', []),
+                'url': '/api/download_update'
+            })
+        else:
+            return jsonify({
+                'has_update': False,
+                'message': 'No hay actualizaciones disponibles'
+            })
+    except Exception as e:
+        return jsonify({
+            'has_update': False,
+            'error': str(e)
+        }), 500
+
+# ============================================================
+# API - UPDATE (NUEVOS ENDPOINTS)
+# ============================================================
+@app.route('/api/update/check', methods=['GET'])
+def api_update_check():
+    return api_check_update()
+
+@app.route('/api/update/install', methods=['POST'])
+def api_update_install():
+    guardar_estado_actualizacion('descargando', 'Iniciando actualización...')
+    return api_download_update()
+
+@app.route('/api/update/status', methods=['GET'])
+def api_update_status():
+    if not os.path.exists(UPDATE_STATUS_FILE):
+        return jsonify({'estado': 'sin_actualizacion'})
+    try:
+        with open(UPDATE_STATUS_FILE, 'r', encoding='utf-8') as f:
+            return jsonify(json.load(f))
+    except Exception as e:
+        return jsonify({'estado': 'error', 'error': str(e)}), 500
+
+@app.route('/api/reiniciar', methods=['POST'])
+def api_reiniciar():
+    try:
+        app_dir = obtener_ruta_instalacion()
+        vbs_path = os.path.join(app_dir, "Iniciar_ADM-ERP.vbs")
+        pid_actual = os.getpid()
+        if not os.path.exists(vbs_path):
+            return jsonify({'error': f'No se encontró {vbs_path}'}), 500
+        cmd = f'timeout /t 2 /nobreak & taskkill /F /PID {pid_actual} & start "" wscript.exe "{vbs_path}"'
+        subprocess.Popen(
+            ["cmd", "/c", cmd],
+            creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
+            close_fds=True,
+            cwd=app_dir
+        )
+        return jsonify({'status': 'reiniciando'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204
+
+# ============================================================
+# API - TEST
+# ============================================================
+@app.route("/api/test")
+def test_api():
+    return jsonify({
+        "status": "ok",
+        "message": "API funcionando correctamente",
+        "authenticated": 'username' in session,
+        "version": obtener_version_actual()
+    })
+
+# ============================================================
+# API - DEBUG STOCK
+# ============================================================
+@app.route('/api/debug/stock', methods=['GET'])
+def debug_stock():
+    if 'username' not in session:
+        return jsonify({'error': 'No autenticado'}), 401
+    try:
+        from modules.shared.database import run_sql
+        info = {
+            'db_server': getattr(g, 'db_server', 'NO SETEADO'),
+            'db_database': getattr(g, 'db_database', 'NO SETEADO'),
+            'division': getattr(g, 'division', 'NO SETEADO'),
+            'sucursal': getattr(g, 'sucursal', 'NO SETEADO'),
+            'authenticated_user': session.get('username'),
+            'rol': session.get('rol', 'usuario'),
+            'es_superadmin': session.get('es_superadmin', False),
+            'permisos': session.get('permisos', [])
+        }
+        rows = run_sql("SELECT TOP 1 ARTS_ARTICULO FROM STOC_ARTS")
+        info['consulta_ok'] = True
+        info['resultado'] = 'ok' if rows else 'vacio'
+        return jsonify(info)
+    except Exception as e:
+        return jsonify({
+            'error': 'Ocurrió un error en la base de datos.',
+            'details': str(e)
+        }), 500
+
+# ============================================================
+# MANEJO DE ERRORES
+# ============================================================
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({"error": "Recurso no encontrado"}), 404
+
+@app.errorhandler(401)
+def unauthorized(e):
+    return jsonify({
+        "error": "No autenticado",
+        "code": "UNAUTHORIZED",
+        "login_url": "/"
+    }), 401
+
+@app.errorhandler(403)
+def forbidden(e):
+    return jsonify({
+        "error": "No tienes permiso para acceder a este recurso",
+        "code": "FORBIDDEN"
+    }), 403
+
+# ============================================================
+# FUNCIÓN PARA VERIFICAR ACTUALIZACIONES EN SEGUNDO PLANO
+# ============================================================
+def verificar_actualizaciones_fondo():
+    try:
+        time.sleep(5)
+        print("\n🔍 Verificando actualizaciones en segundo plano...")
+        hay, version_info = check_actualizaciones()
+        if hay and version_info:
+            version_actual = obtener_version_actual()
+            version_nueva = version_info.get('version', '0.0.0')
+            print(f"\n📢 NUEVA VERSIÓN DISPONIBLE: {version_nueva}")
+            print(f"   Versión actual: {version_actual}")
+            print(f"   Fecha: {version_info.get('release_date', 'N/A')}")
+            print()
+            print("   Cambios:")
+            for cambio in version_info.get('changelog', []):
+                print(f"   • {cambio}")
+            print()
+            print("   Visita /api/download_update para instalar automáticamente")
+            print("=" * 60)
+            update_info_file = os.path.join(PROGRAM_DATA, "SidesysERP", "update_available.json")
+            os.makedirs(os.path.dirname(update_info_file), exist_ok=True)
+            with open(update_info_file, 'w', encoding='utf-8') as f:
+                json.dump({
+                    'version': version_nueva,
+                    'release_date': version_info.get('release_date'),
+                    'changelog': version_info.get('changelog', []),
+                    'detected_at': time.time()
+                }, f, indent=2)
+    except Exception as e:
+        print(f"[WARN] Error verificando actualizaciones en fondo: {e}")
+
+# ============================================================
+# EJECUCIÓN
+# ============================================================
+if __name__ == "__main__":
+    import psutil
+
+    os.makedirs(UPDATE_DIR, exist_ok=True)
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+
+    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    if FLASK_ENV == 'production' and debug_mode:
+        print("[WARN] ⚠️ DEBUG activado en producción - DESACTIVANDO")
+        debug_mode = False
+
+    print("=" * 60)
+    print("  SIDESYS ERP - MODO DESARROLLO")
+    print("=" * 60)
+    print(f"  Versión: {APP_VERSION}")
+    print(f"  SECRET_KEY: {SECRET_KEY[:10]}...")
+    print(f"  Sesiones expiran en: {app.config['PERMANENT_SESSION_LIFETIME']} segundos")
+    print("  Autenticación de Windows: ACTIVADA")
+    print("  Panel de Administración: ACTIVADO")
+    print("  Sistema de Actualizaciones: ACTIVADO")
+    print(f"  Entorno: {FLASK_ENV}")
+    print(f"  DEBUG: {debug_mode}")
+    print("=" * 60)
+    print()
+
+    thread = threading.Thread(target=verificar_actualizaciones_fondo)
+    thread.daemon = True
+    thread.start()
+
+    def monitorear_navegador():
+        time.sleep(3)
+        navegadores = ["chrome.exe", "firefox.exe", "msedge.exe", "brave.exe"]
+        pid_navegador = None
+        for proc in psutil.process_iter(['pid', 'name']):
+            if proc.info['name'].lower() in navegadores:
+                try:
+                    for conn in proc.net_connections():
+                        if conn.laddr.port == 5000:
+                            pid_navegador = proc.info['pid']
+                            break
+                except:
+                    pass
+                if pid_navegador:
+                    break
+        if pid_navegador:
+            print(f"[INFO] Monitoreando navegador (PID: {pid_navegador})")
+            while True:
+                try:
+                    psutil.Process(pid_navegador)
+                    time.sleep(3)
+                except psutil.NoSuchProcess:
+                    print("[INFO] Navegador cerrado. Deteniendo servidor...")
+                    os._exit(0)
+                    break
+
+    threading.Thread(target=monitorear_navegador, daemon=True).start()
+
+    app.run(
+        host="0.0.0.0",
+        port=5000,
+        debug=debug_mode,
+        threaded=True
+    )

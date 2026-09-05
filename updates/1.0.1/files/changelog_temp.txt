@@ -1,6 +1,0 @@
-﻿! Corregido hash SHA-256 en actualizaciones diferenciales
-! Implementado polling de estado real en /api/update/status
-+ Mejoras en módulo de reportes (ventas manuales, doble moneda)
-+ Persistencia del último reporte activo
-+ Recarga selectiva por base
-+ Siglas de países en toda la UI
