@@ -1,19 +1,17 @@
 {
-  "version": "1.0.0",
-  "release_date": "2026-08-31 00:00:00",
+  "version": "1.0.1",
+  "release_date": "2026-09-05 10:58:35",
   "changelog": [
-    "✅ Versión base con Dashboard completo",
-    "🔔 Sistema de notificaciones globales (badge y polling)",
-    "📊 Consultas optimizadas para el Dashboard",
-    "🎨 Estilos específicos para Dashboard",
-    "🐛 Correcciones menores en rutas y consultas",
-    "📝 Documentación actualizada",
-    "🔧 Instalador con detección de Python y dependencias automáticas"
+    "! Corregido hash SHA-256 en actualizaciones diferenciales",
+    "! Implementado polling de estado real en /api/update/status",
+    "+ Mejoras en m?dulo de reportes (ventas manuales, doble moneda)",
+    "+ Persistencia del ?ltimo reporte activo",
+    "+ Recarga selectiva por base",
+    "+ Siglas de pa?ses en toda la UI"
   ],
-  "checksum": "",
-  "download_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/updates/update_1.0.0.zip",
-  "manifest_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/updates/1.0.0/manifest.json",
-  "files_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/updates/1.0.0/files/",
+  "manifest_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/updates/1.0.1/manifest.json",
+  "files_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/updates/1.0.1/files/",
+  "deleted_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/updates/1.0.1/deleted.json",
   "installer_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/ADM-ERP_Setup_Latest.exe",
   "requires_restart": true,
   "force_update": false
