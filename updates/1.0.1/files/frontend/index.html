@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ERP UNIFICADO</title>
+  <!-- CSS Global -->
+  <link rel="stylesheet" href="/frontend/css/global.css">
+  <!-- CSS por módulo -->
+  <link rel="stylesheet" href="/frontend/css/dashboard.css">
+  <link rel="stylesheet" href="/frontend/css/stock.css">
+  <link rel="stylesheet" href="/frontend/css/cxp.css">
+  <link rel="stylesheet" href="/frontend/css/cotizaciones.css">
+  <link rel="stylesheet" href="/frontend/css/reportes.css">
+</head>
+<body>
+
+<!-- ============================================================
+     TOPBAR
+     ============================================================ -->
+<header id="topbar">
+  <div class="brand">
+    <div class="brand-logo">💳</div>
+    <div>
+      <div class="brand-name">SIDESYS</div>
+      <div class="brand-sub">ERP Unificado</div>
+    </div>
+  </div>
+
+  <nav id="module-nav">
+    <button class="module-tab active" data-module="dashboard" data-onclick="cambiarModulo('dashboard'); openDrawer();">🏠 Inicio</button>
+    <button class="module-tab" data-module="stock" data-onclick="cambiarModulo('stock'); openDrawer();">📦 Stock</button>
+    <button class="module-tab" data-module="cxp" data-onclick="cambiarModulo('cxp'); openDrawer();">💳 CxP</button>
+    <button class="module-tab" data-module="cotizaciones" data-onclick="cambiarModulo('cotizaciones'); openDrawer();">💱 Cotizaciones</button>
+    <button class="module-tab" data-module="reportes" data-onclick="cambiarModulo('reportes'); openDrawer();">📊 Reportes</button>    
+  </nav>
+
+  <div class="topbar-spacer"></div>
+
+  <div id="base-picker" class="base-select">
+    <button class="base-trigger" data-onclick="toggleBasePicker()" data-tooltip="selectorBase">
+      <span class="lbl">Base</span>
+      <span class="val" id="base-btn-label">República Dominicana</span>
+      <span class="chev">▾</span>
+    </button>
+    <div class="base-menu" id="base-dropdown"></div>
+  </div>
+
+  <div id="sociedad-picker" class="base-select" style="display:none">
+    <button class="base-trigger" data-onclick="toggleSociedadPicker()" data-tooltip="selectorSociedad">
+      <span class="lbl">Sociedad</span>
+      <span class="val" id="sociedad-btn-label">Sidesys</span>
+      <span class="chev">▾</span>
+    </button>
+    <div class="base-menu" id="sociedad-dropdown"></div>
+  </div>
+
+  <!-- 👤 Indicador de usuario -->
+  <div style="display:flex;align-items:center;gap:10px;margin-left:15px;font-size:13px;color:var(--ink-soft);background:var(--surface-2);padding:4px 12px;border-radius:20px;border:1px solid var(--border);">
+    <span id="user-indicator-icon">👤</span>
+    <span id="user-indicator-name">Cargando...</span>
+    <span id="user-indicator-role" style="font-size:10px;background:var(--primary);color:white;padding:1px 8px;border-radius:10px;display:none;">Admin</span>
+  </div>
+
+  <!-- 🔔 NOTIFICACIONES BADGE (NUEVO) -->
+  <div id="notificacion-badge" style="position:relative;cursor:pointer;margin-left:12px;display:flex;align-items:center;gap:4px;">
+    <span style="font-size:18px;">🔔</span>
+    <span id="notif-count" style="background:#dc2626;color:#fff;border-radius:50%;padding:1px 7px;font-size:11px;font-weight:700;display:none;">0</span>
+  </div>
+</header>
+
+<!-- ============================================================
+     DRAWER (MENÚ LATERAL)
+     ============================================================ -->
+<div id="drawer-overlay"></div>
+<nav id="drawer">
+  <div class="drawer-header">
+    <span>Menú</span>
+    <button id="drawer-close" data-onclick="closeDrawer()">✕</button>
+  </div>
+
+  <!-- === STOCK === -->
+  <div class="drawer-module" data-module="stock">
+    <div class="drawer-category">Consultar Stock</div>
+    <div class="drawer-group"><div class="drawer-tab" data-tab="stock" data-tooltip="drawerStockConsultar">Consultar Stock</div></div>
+    <div class="drawer-group"><div class="drawer-tab" data-tab="stock-consolidado" data-autoload="buscarConsolidado" data-tooltip="drawerStockConsolidado">Stock Consolidado</div></div>
+
+    <div class="drawer-category">Movimientos</div>
+    <div class="drawer-group">
+      <div class="drawer-tab" data-tab="ajuste-e" data-tooltip="drawerAjusteMas">Ajuste +</div>
+      <div class="drawer-sub">
+        <div class="drawer-subitem active" data-sub="ae-individual" data-group="ae">Individual</div>
+        <div class="drawer-subitem" data-sub="ae-multiple" data-group="ae">Varios artículos</div>
+        <div class="drawer-subitem" data-sub="ae-excel" data-group="ae">Cargar Excel</div>
+      </div>
+    </div>
+    <div class="drawer-group">
+      <div class="drawer-tab" data-tab="ajuste-s" data-tooltip="drawerAjusteMenos">Ajuste -</div>
+      <div class="drawer-sub">
+        <div class="drawer-subitem active" data-sub="as-individual" data-group="as">Individual</div>
+        <div class="drawer-subitem" data-sub="as-multiple" data-group="as">Varios artículos</div>
+        <div class="drawer-subitem" data-sub="as-excel" data-group="as">Cargar Excel</div>
+      </div>
+    </div>
+    <div class="drawer-group">
+      <div class="drawer-tab" data-tab="transferencia" data-tooltip="drawerTransferencia">Transferencia</div>
+      <div class="drawer-sub">
+        <div class="drawer-subitem active" data-sub="tr-individual" data-group="tr">Individual</div>
+        <div class="drawer-subitem" data-sub="tr-multiple" data-group="tr">Varios artículos</div>
+        <div class="drawer-subitem" data-sub="tr-excel" data-group="tr">Cargar Excel</div>
+      </div>
+    </div>
+
+    <div class="drawer-category">Edición</div>
+    <div class="drawer-group">
+      <div class="drawer-tab" data-tab="articulos" data-tooltip="drawerArticulos">Artículos</div>
+      <div class="drawer-sub">
+        <div class="drawer-subitem active" data-sub="art-crear" data-group="art">Crear</div>
+        <div class="drawer-subitem" data-sub="art-modificar" data-group="art">Modificar</div>
+        <div class="drawer-subitem" data-sub="art-excel" data-group="art">Cargar Excel</div>
+      </div>
+    </div>
+    <div class="drawer-group"><div class="drawer-tab" data-tab="depositos" data-tooltip="drawerDepositos">Depósitos</div></div>
+  </div>
+
+  <!-- === CXP === -->
+  <div class="drawer-module" data-module="cxp" style="display:none">
+    <div class="drawer-category">Cuentas a Pagar</div>
+    <div class="drawer-group"><div class="drawer-tab active" data-tab="cxp-facturas" data-tooltip="drawerCxpFacturas">Facturas</div></div>
+  </div>
+
+  <!-- === COTIZACIONES === -->
+  <div class="drawer-module" data-module="cotizaciones" style="display:none">
+    <div class="drawer-category">Cotizaciones</div>
+    <div class="drawer-group"><div class="drawer-tab active" data-tab="cxp-cotizaciones" data-tooltip="drawerCotizaciones">Tipo de Cambio</div></div>
+  </div>
+
+  <!-- === REPORTES === -->
+  <div class="drawer-module" data-module="reportes" style="display:none">
+    <div class="drawer-category">📊 Reportes</div>
+    <div class="drawer-group">
+        <div class="drawer-tab active" data-tab="reportes-pendiente-facturar" data-onclick="cambiarReporte('contratos'); closeDrawer();" data-tooltip="drawerReportesPendienteFacturar">📄 Pendiente de Facturar</div>
+    </div>
+    <div class="drawer-group">
+        <div class="drawer-tab" data-tab="reportes-pendiente-cobro" data-onclick="cambiarReporte('pendiente-cobro'); closeDrawer();" data-tooltip="drawerReportesPendienteCobro">💰 Pendiente de Cobro</div>
+    </div>
+    <div class="drawer-group">
+        <div class="drawer-tab" data-tab="reportes-consolidado-pais" data-onclick="cambiarReporte('consolidado-pais'); closeDrawer();" data-tooltip="drawerReportesConsolidadoPais">🌍 Ventas por País</div>
+    </div>
+    <div class="drawer-group">
+        <div class="drawer-tab" data-tab="reportes-consolidado-total" data-onclick="cambiarReporte('consolidado-total'); closeDrawer();" data-tooltip="drawerReportesConsolidadoTotal">🌐 Ventas Globales</div>
+    </div>
+  </div>
+</nav>
+
+<!-- ============================================================
+     CONTENIDO PRINCIPAL
+     ============================================================ -->
+<div class="container" id="app-container">
+  <div id="empty-state" class="empty">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 10h18M3 14h18M3 18h18M3 6h18"/></svg>
+    <div class="e-title">Elegí una opción del menú</div>
+    <div class="e-sub">📋 Haz clic en Stock o CxP para abrir el menú</div>
+  </div>
+
+  <h2 id="seccion-activa" style="display:none"></h2>
+  <div id="msg"></div>
+
+  <!-- ============================================================
+       CONTENEDOR DINÁMICO PARA MÓDULOS
+       ============================================================ -->
+  <div id="module-content"></div>
+
+</div>
+
+<!-- ============================================================
+     MODALES Y TOASTS
+     ============================================================ -->
+<div id="modal-corregir" style="display:none;position:fixed;inset:0;z-index:70;background:rgba(20,20,30,0.45);align-items:center;justify-content:center">
+  <div style="background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);padding:28px 24px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <div style="font-size:16px;font-weight:700;color:var(--ink)" id="modal-corregir-titulo"></div>
+      <button data-onclick="cerrarModalCorregir()" style="background:transparent;color:var(--ink-soft);border:none;font-size:18px;padding:4px 8px;line-height:1">✕</button>
+    </div>
+    <div style="font-size:12px;color:var(--ink-soft);margin-bottom:18px">Código: <b id="modal-corregir-codigo"></b></div>
+    <label>Nombre nuevo</label>
+    <input type="text" id="modal-corregir-nombre" style="margin-bottom:16px" placeholder="Nombre unificado para los países seleccionados">
+    <label style="margin-bottom:8px">Aplicar en</label>
+    <div id="modal-corregir-bases" style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:18px"></div>
+    <div id="modal-corregir-msg"></div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button id="modal-corregir-btn" data-onclick="aplicarCorreccionModal()" style="flex:1">Aplicar</button>
+      <button data-onclick="cerrarModalCorregir()" class="secondary" style="flex:1">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="stock-toast" style="display:none;position:fixed;bottom:24px;right:24px;z-index:60;width:300px;background:#2a2a3e;border-radius:var(--radius);border:0.5px solid rgba(255,255,255,0.12);padding:14px 16px;box-shadow:0 8px 32px rgba(0,0,0,0.28)">
+  <div id="stock-toast-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+    <span id="stock-toast-title" style="font-size:14px;font-weight:600;color:white">Nuevos movimientos de stock</span>
+    <button data-onclick="cerrarToast()" style="background:transparent;color:rgba(255,255,255,0.4);border:none;padding:0 4px;font-size:16px;line-height:1">✕</button>
+  </div>
+  <div id="stock-toast-body" style="font-size:13px;color:rgba(255,255,255,0.65);margin-bottom:4px"></div>
+  <div id="stock-toast-paises" style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:12px"></div>
+  <div style="display:flex;gap:8px">
+    <button id="stock-toast-ver" style="flex:1;padding:7px 0;background:var(--primary);color:white;font-size:13px;font-weight:600;border:none;border-radius:6px" data-onclick="irConsolidadoDesdeToast()">Ver consolidado</button>
+    <button id="stock-toast-ignorar" style="flex:1;padding:7px 0;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);font-size:13px;border:none;border-radius:6px" data-onclick="cerrarToast()">Ignorar</button>
+  </div>
+</div>
+
+<!-- ============================================================
+     BANNER DE ACTUALIZACIÓN (VERSIÓN ANTIGUA)
+     ============================================================ -->
+<div id="update-banner" style="position:fixed;top:0;left:0;right:0;z-index:999;background:var(--primary);color:#fff;padding:10px 20px;display:none;align-items:center;justify-content:center;gap:12px;font-size:13px;font-weight:500">
+  <span>↺ Hay una nueva versión disponible.</span>
+  <button data-onclick="actualizarApp()" style="background:#fff;color:var(--primary);border:none;border-radius:5px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer">Actualizar ahora</button>
+</div>
+
+<!-- ============================================================
+     NOTIFICACIÓN DE ACTUALIZACIÓN (TIEMPO REAL)
+     ============================================================ -->
+<div id="update-notification" style="display: none; position: fixed; top: 70px; right: 20px; 
+     background: #fff; border: 2px solid #2563eb; border-radius: 10px; 
+     padding: 20px; max-width: 400px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); z-index: 9999;">
+    
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+        <span style="font-size: 24px;">📢</span>
+        <h3 style="margin: 0; color: #2563eb; font-size: 16px;">Nueva versión disponible</h3>
+    </div>
+    
+    <p style="margin: 4px 0;"><strong>Versión:</strong> <span id="update-version">-</span></p>
+    <p style="margin: 4px 0;"><strong>Fecha:</strong> <span id="update-date">-</span></p>
+    
+    <div style="background: #f1f5f9; border-radius: 6px; padding: 10px; margin: 10px 0; max-height: 120px; overflow-y: auto;">
+        <p style="margin: 0; font-size: 13px;"><strong>Cambios:</strong></p>
+        <ul id="update-changelog" style="margin: 5px 0 0 20px; font-size: 13px; color: #334155;"></ul>
+    </div>
+    
+    <div style="display: flex; gap: 10px; margin-top: 15px;">
+        <button id="btn-actualizar-ahora" data-onclick="instalarActualizacion()" style="flex: 1; background: #2563eb; color: #fff; 
+                border: none; border-radius: 6px; padding: 10px; cursor: pointer; font-weight: 600;">
+            🔄 Actualizar ahora
+        </button>
+        <button id="btn-mas-tarde" data-onclick="cerrarNotificacion()" style="flex: 1; background: #e2e8f0; color: #1e293b; 
+                border: none; border-radius: 6px; padding: 10px; cursor: pointer; font-weight: 500;">
+            Más tarde
+        </button>
+    </div>
+    
+    <div id="update-progress" style="display: none; margin-top: 10px;">
+        <div style="background: #e2e8f0; border-radius: 4px; overflow: hidden; height: 20px;">
+            <div id="update-progress-bar" style="background: #2563eb; height: 100%; width: 0%; 
+                 transition: width 0.5s;"></div>
+        </div>
+        <p id="update-status" style="font-size: 12px; text-align: center; margin-top: 5px; color: #475569;">
+            Descargando actualización...
+        </p>
+    </div>
+
+    <!-- C5: version minima soportada (la firma no garantiza frescura) -->
+    <div id="update-bloqueado" style="display: none; margin-top: 10px; background: #fef3c7;
+         border: 1px solid #f59e0b; border-radius: 6px; padding: 8px; font-size: 12px; color: #78350f;">
+    </div>
+</div>
+
+<div id="toast-container"></div>
+
+<!-- ============================================================
+     LOGIN REMOTO (C4) - solo visible si no hay sesión (no-SSO)
+     ============================================================ -->
+<div id="login-overlay" style="display:none;position:fixed;inset:0;z-index:20000;background:rgba(15,23,42,0.93);align-items:center;justify-content:center">
+  <div style="background:#ffffff;border-radius:12px;padding:28px;width:320px;box-shadow:0 20px 60px rgba(0,0,0,0.4);box-sizing:border-box">
+    <div style="font-size:18px;font-weight:700;margin-bottom:2px;color:#1e293b">SIDESYS ERP</div>
+    <div style="font-size:12px;color:#64748b;margin-bottom:16px">Iniciá sesión con tu usuario de Windows</div>
+    <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:4px">Usuario</label>
+    <input type="text" id="login-user" autocomplete="username" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;margin-bottom:12px;font-size:14px">
+    <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:4px">Contraseña</label>
+    <input type="password" id="login-pass" autocomplete="current-password" data-onkeydown="if(event.key==='Enter') enviarLoginRemoto()" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;margin-bottom:14px;font-size:14px">
+    <div id="login-msg" style="font-size:12px;color:#dc2626;min-height:16px;margin-bottom:8px"></div>
+    <button data-onclick="enviarLoginRemoto()" style="width:100%;padding:9px;background:#2563eb;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:14px">Ingresar</button>
+  </div>
+</div>
+
+<!-- ============================================================
+     SCRIPTS (ORDEN CORRECTO PARA MÓDULOS ES6)
+     ============================================================ -->
+<script src="/frontend/modules/shared/seguridad.js"></script>
+<script src="/frontend/modules/shared/paises.js"></script>
+<script src="/app.js"></script>
+
+<!-- 🆕 SHARED - Tooltips (primero, para que estén disponibles globalmente) -->
+<script type="module" src="/frontend/modules/shared/tooltips.js"></script>
+<script type="module" src="/frontend/modules/shared/tooltip-component.js"></script>
+
+<!-- Dashboard -->
+<script type="module" src="/frontend/modules/dashboard.js"></script>
+
+<!-- Templates y Stock (siempre primero) -->
+<script src="/frontend/modules/templates.js"></script>
+<script src="/frontend/modules/stock/utils.js"></script>
+<script src="/frontend/modules/stock/ajustes.js"></script>
+<script src="/frontend/modules/stock/transferencias.js"></script>
+<script src="/frontend/modules/stock/consultar.js"></script>
+<script src="/frontend/modules/stock/consolidado.js"></script>
+<script src="/frontend/modules/stock/excel.js"></script>
+<script src="/frontend/modules/stock/articulos.js"></script>
+<script src="/frontend/modules/stock/depositos.js"></script>
+<script src="/frontend/modules/stock/index.js"></script>
+
+<!-- CXP - Módulos ES6 (con type="module") -->
+<script type="module" src="/frontend/modules/cxp/ui.js"></script>
+<script type="module" src="/frontend/modules/cxp/utils.js"></script>
+<script type="module" src="/frontend/modules/cxp/renglones.js"></script>
+<script type="module" src="/frontend/modules/cxp/eventuales.js"></script>
+<script type="module" src="/frontend/modules/cxp/eliminar.js"></script>
+<script type="module" src="/frontend/modules/cxp/main.js"></script>
+<script type="module" src="/frontend/modules/cxp/render.js"></script>
+<script type="module" src="/frontend/modules/cxp/init.js"></script>
+<script type="module" src="/frontend/modules/cxp/index.js"></script>
+
+<!-- Reportes - Módulos -->
+<script type="module" src="/frontend/modules/reportes/index.js"></script>
+<script type="module" src="/frontend/modules/reportes/pendiente_cobro.js"></script>
+<script type="module" src="/frontend/modules/reportes/consolidado_total.js"></script>
+
+<!-- Otros módulos -->
+<script src="/frontend/modules/cotizaciones.js"></script>
+
+<!-- 🔔 Notificaciones globales (NUEVO) -->
+<script type="module" src="/frontend/modules/notificaciones.js"></script>
+
+<!-- ============================================================
+     INICIALIZACIÓN (MODIFICADA - DASHBOARD ES EL PRIMERO)
+     ============================================================ -->
+<script type="module" src="/frontend/modules/init.js"></script>
+
+</body>
+</html>

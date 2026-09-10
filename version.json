@@ -1,13 +1,19 @@
 {
-  "version": "1.0.0",
-  "release_date": "2026-09-05 12:56:13",
+  "version": "1.0.1",
+  "release_date": "2026-09-10 16:41:35",
   "changelog": [
-    "Versión base inicial del sistema ADM-ERP"
+    "Remediación de la auditoría de seguridad (SQLi, secretos, control de acceso por rol/base)",
+    "Firma Ed25519 del canal de actualizaciones y verificación SHA-256 de cada archivo",
+    "Sistema de actualizaciones: pop-up, descarga diferencial, instalación y auto-reinicio con la versión nueva",
+    "Corrección crítica: el updater comparaba el hash de otro archivo y abortaba toda actualización",
+    "Login remoto por usuario/contraseña contra Windows/AD (sin almacenar credenciales)",
+    "Exportación real a .xlsx en reportes y plantillas",
+    "CSP fuerte, escape central de HTML y ocultamiento de UI por permisos"
   ],
-  "manifest_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/updates/1.0.0/manifest.json",
-  "files_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/updates/1.0.0/files/",
+  "manifest_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/updates/1.0.1/manifest.json",
+  "files_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/updates/1.0.1/files/",
   "deleted_url": null,
-  "installer_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/ADM-ERP_Setup_Latest.exe",
+  "installer_url": "https://github.com/ProyADM/ADM-ERP-Updates/releases/download/installer-latest/ADM-ERP_Setup_Latest.exe",
   "requires_restart": true,
   "force_update": false
 }

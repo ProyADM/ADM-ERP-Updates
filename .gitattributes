@@ -1,7 +1,18 @@
-# C5 - Firmas Ed25519 del canal de actualizacion (sidecar .sig).
-# Estos archivos se firman por BYTES EXACTOS: el blob publicado en GitHub debe
-# ser identico a lo firmado en disco. Prohibir cualquier conversion de fin de
-# linea (CRLF/LF) para version.json, los manifests y los propios .sig.
+# ADM-ERP - Atributos del repo PUBLICO de actualizaciones.
+# ============================================================
+# REGLA CRITICA: TODO el contenido de este repo se firma o se hashea por
+# BYTES EXACTOS (el manifest lista el SHA-256 de cada archivo que el cliente
+# descarga y compara). Git en Windows, con core.autocrlf=true, convierte los
+# finales de linea al hacer `git add`, y eso CAMBIA LOS BYTES del blob que
+# sirve GitHub -> el hash no coincide -> el cliente aborta la actualizacion
+# ("Hash invalido en <archivo>: se aborta la actualizacion").
+#
+# Por eso se prohibe toda conversion de fin de linea en el repo entero.
+# No reemplazar esto por reglas por extension: agregar un tipo nuevo (o una
+# extension que nadie recuerde) reintroduce el bug.
+* -text
+
+# Reforzado explicito para los metadatos firmados (documentacion viva):
 version.json -text
 updates/**/manifest.json -text
 *.sig -text
