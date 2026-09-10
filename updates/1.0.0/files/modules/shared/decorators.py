@@ -306,3 +306,48 @@ def requiere_acceso_base(base):
                 }), 500
         return decorated
     return decorador
+
+
+# ============================================================
+# C4 - VALIDACIÓN DE BASE EN HANDLERS (base dinámica / multi-base)
+# ============================================================
+# Estas funciones se invocan DENTRO del handler cuando la base no viene del
+# header X-Base (middleware) sino de query params o del cuerpo del request.
+# Retornan None si está OK, o una respuesta Flask 401/403 lista para devolver.
+
+def chequear_acceso_base(base):
+    """Valida que el usuario actual tenga acceso a la base indicada."""
+    username = session.get('username')
+    if not username:
+        return jsonify({
+            "error": "No autenticado",
+            "code": "UNAUTHORIZED",
+            "login_url": "/"
+        }), 401
+    if not gestor.tiene_acceso_a_base(username, base):
+        logger.warning(f"Base '{base}' no autorizada para {username} (chequeo dinámico)")
+        return jsonify({
+            "error": f"Base \"{base}\" no autorizada para este usuario",
+            "code": "BASE_FORBIDDEN"
+        }), 403
+    return None
+
+
+def chequear_acceso_total_bases():
+    """Valida que el usuario actual pueda operar sobre TODAS las bases
+    (superadmin o bases_permitidas=['*']). Para reportes/escrituras
+    multi-base que no admiten acceso parcial."""
+    username = session.get('username')
+    if not username:
+        return jsonify({
+            "error": "No autenticado",
+            "code": "UNAUTHORIZED",
+            "login_url": "/"
+        }), 401
+    if not gestor.puede_acceder_todas_bases(username):
+        logger.warning(f"Acceso multi-base denegado para {username}")
+        return jsonify({
+            "error": "Se requieren permisos sobre todas las bases para esta operación",
+            "code": "BASE_FORBIDDEN"
+        }), 403
+    return None

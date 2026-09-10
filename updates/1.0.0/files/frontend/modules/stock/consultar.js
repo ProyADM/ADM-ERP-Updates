@@ -2,18 +2,6 @@
 // STOCK - CONSULTAR STOCK (VERSIÓN CORREGIDA - XSS SANITIZADO)
 // ============================================================
 
-function escapeHTML(str) {
-    if (!str) return '';
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return String(str).replace(/[&<>"']/g, function(m) { return map[m]; });
-}
-
 function sanitizarValor(val) {
     if (val === undefined || val === null) return '';
     return escapeHTML(String(val));
@@ -93,15 +81,15 @@ async function consultarStock() {
       const stockClass = r.stock > 0 ? '600' : '400';
       const stockColor = r.stock > 0 ? 'var(--ok)' : 'var(--ink-soft)';
       return `<tr>
-        <td style="text-align:center;"><input type="checkbox" class="stk-check" data-articulo="${articuloVal}" data-deposito="${depositoVal}" onchange="actualizarSeleccionBar()"></td>
+        <td style="text-align:center;"><input type="checkbox" class="stk-check" data-articulo="${articuloVal}" data-deposito="${depositoVal}" data-onchange="actualizarSeleccionBar()"></td>
         <td><strong>${codigo}</strong></td>
         <td>${nombre}</td>
         <td>${depositoNombre}</td>
         <td style="text-align:right;font-weight:${stockClass};color:${stockColor};">${stockVal}</td>
         <td class="stock-acciones" style="text-align:center;">
-          <button class="small secondary" title="Ajuste de entrada" onclick="irAMovimiento('ae', ${articuloVal}, ${depositoVal})">+</button>
-          <button class="small secondary" title="Ajuste de salida" onclick="irAMovimiento('as', ${articuloVal}, ${depositoVal})">−</button>
-          <button class="small secondary" title="Transferencia" onclick="irAMovimiento('tr', ${articuloVal}, ${depositoVal})">⇄</button>
+          <button class="small secondary" title="Ajuste de entrada" data-onclick="irAMovimiento('ae', ${articuloVal}, ${depositoVal})">+</button>
+          <button class="small secondary" title="Ajuste de salida" data-onclick="irAMovimiento('as', ${articuloVal}, ${depositoVal})">−</button>
+          <button class="small secondary" title="Transferencia" data-onclick="irAMovimiento('tr', ${articuloVal}, ${depositoVal})">⇄</button>
         </td>
       </tr>`;
     }).join("");
@@ -234,6 +222,5 @@ window.toggleTodosStock = toggleTodosStock;
 window.actualizarSeleccionBar = actualizarSeleccionBar;
 window.enviarSeleccionAMovimiento = enviarSeleccionAMovimiento;
 window.irAMovimiento = irAMovimiento;
-window.escapeHTML = escapeHTML;
 
 console.log('✅ Stock - Consultar cargado (XSS sanitizado)');

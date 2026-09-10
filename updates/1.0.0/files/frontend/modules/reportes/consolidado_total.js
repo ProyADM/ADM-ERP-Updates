@@ -57,18 +57,6 @@ function formatearNumero(valor) {
 // SANITIZAR HTML
 // ============================================================
 
-function escapeHTML(str) {
-    if (!str) return '';
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return String(str).replace(/[&<>"']/g, function(m) { return map[m]; });
-}
-
 // ============================================================
 // CARGAR AÑOS DISPONIBLES (UNA SOLA VEZ)
 // ============================================================
@@ -162,7 +150,7 @@ export async function cargarConsolidadoTotal() {
         if (!data.success || data.error) {
             resultadosDiv.innerHTML = `
                 <div style="color:#dc2626;padding:20px;text-align:center;border:1px solid #fecaca;border-radius:8px;background:#fef2f2;">
-                    ❌ ${data.error || 'Error al cargar datos'}
+                    ❌ ${escapeHTML(data.error || 'Error al cargar datos')}
                 </div>
             `;
             return;
@@ -350,9 +338,9 @@ function generarVistaGlobal(datos, ventasManuales) {
 
         <!-- TABLA DETALLADA -->
         <div style="background:white;border-radius:10px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,0.04);">
-            <div style="overflow-x:auto;max-height:500px;overflow-y:auto;">
+            <div style="overflow-x:auto;">
                 <table style="width:100%;border-collapse:collapse;font-size:13px;">
-                    <thead style="position:sticky;top:0;background:#f8fafc;border-bottom:2px solid #e2e8f0;z-index:2;">
+                    <thead style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">
                         <tr>
                             <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569;min-width:120px;background:#f8fafc;">País</th>
                             ${todosMeses.length > 0 ? todosMeses.map(m => {
@@ -469,39 +457,39 @@ function generarVistaGlobal(datos, ventasManuales) {
 }
 
 // ============================================================
-// EXPORTAR CSV GLOBAL
+// EXPORTAR XLSX GLOBAL
 // ============================================================
 
-function exportarGlobalCSV() {
+function exportarGlobalExcel() {
     if (!datosOriginalesGlobal || datosOriginalesGlobal.length === 0) {
         if (typeof toastWarning === 'function') toastWarning('⚠️ No hay datos para exportar', 'Reportes');
         return;
     }
 
     const columnas = ['País', 'Año', 'Mes', 'Importe USD', 'Transacciones'];
-    let csv = columnas.join(',') + '\n';
+    const filas = [];
 
     datosOriginalesGlobal.forEach(row => {
         let pais = row.Pais || row.Base || row.Sigla || 'Sin País';
-        if (pais.length === 2 && SIGLA_A_PAIS[pais]) {
+        if (pais && pais.length === 2 && SIGLA_A_PAIS[pais]) {
             pais = SIGLA_A_PAIS[pais];
         }
         const anio = row.Anio || row.Año || '';
         const mes = row.Mes || '';
         const importeDL = row.Importe_DL || row.Total || row.Importe || 0;
         const transacciones = row.Transacciones || row.Cantidad || 0;
-        csv += `"${pais}",${anio},${mes},${importeDL},${transacciones}\n`;
+        filas.push([pais, anio, mes, importeDL, transacciones]);
     });
 
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `consolidado_global_${anioSeleccionadoGlobal}_${new Date().toISOString().slice(0,10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const archivo = `consolidado_global_${anioSeleccionadoGlobal}_${new Date().toISOString().slice(0,10)}.xlsx`;
+    if (typeof window.descargarXlsx === 'function') {
+        window.descargarXlsx(archivo, 'Ventas Globales', columnas, filas);
+    } else {
+        if (typeof toastError === 'function') toastError('Exportación no disponible', 'Reportes');
+        return;
+    }
 
-    if (typeof toastSuccess === 'function') toastSuccess('✅ Reporte exportado a CSV', 'Reportes');
+    if (typeof toastSuccess === 'function') toastSuccess('✅ Reporte exportado a Excel', 'Reportes');
 }
 
 // ============================================================
@@ -546,8 +534,14 @@ export async function inicializarConsolidadoTotal() {
             <button id="btnActualizarGlobal" style="padding:6px 16px;background:#2563eb;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:500;">
                 🔄 Actualizar
             </button>
-            <button id="btnExportarGlobalCSV" style="padding:6px 16px;background:#16a34a;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:500;">
-                📥 Exportar CSV
+            <button id="btnExportarGlobalExcel" style="padding:6px 16px;background:#16a34a;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:500;">
+                📥 Exportar Excel
+            </button>
+            <button id="btn-cargar-venta-manual" data-onclick="abrirModalVentaManual()" data-perm="reportes.crear" style="padding:6px 16px;background:#8b5cf6;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:500;">
+                ✏️ Cargar VM
+            </button>
+            <button id="btn-admin-ventas-manuales" data-onclick="abrirAdminVentasManuales()" style="padding:6px 16px;background:#64748b;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:500;">
+                📋 Admin VM
             </button>
             <span id="total-registros-global" style="font-size:13px;color:#64748b;margin-left:auto;"></span>
         </div>
@@ -567,7 +561,7 @@ export async function inicializarConsolidadoTotal() {
         cargarConsolidadoTotal();
     };
     document.getElementById('btnActualizarGlobal').onclick = cargarConsolidadoTotal;
-    document.getElementById('btnExportarGlobalCSV').onclick = exportarGlobalCSV;
+    document.getElementById('btnExportarGlobalExcel').onclick = exportarGlobalExcel;
 
     inicializadoGlobal = true;
     await cargarConsolidadoTotal();
@@ -579,6 +573,6 @@ export async function inicializarConsolidadoTotal() {
 
 window.cargarConsolidadoTotal = cargarConsolidadoTotal;
 window.inicializarConsolidadoTotal = inicializarConsolidadoTotal;
-window.exportarGlobalCSV = exportarGlobalCSV;
+window.exportarGlobalExcel = exportarGlobalExcel;
 
 console.log('✅ consolidado_total.js cargado (con siglas y marcado naranja)');

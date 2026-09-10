@@ -36,9 +36,53 @@ if not SECRET_KEY:
 # ============================================================
 # VERSIÓN DE LA APLICACIÓN
 # ============================================================
-APP_VERSION = "1.0.0"  # Base para instalador limpio
-VERSION_URL = "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/version.json"
-UPDATE_URL = "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/updates/"
+# Fuente de verdad: el archivo VERSION en la raiz de la app (lo escribe el
+# release). Si no existe (dev), se usa el fallback. No hardcodear la version:
+# terminaba desalineada con el instalador y con version.txt.
+def _leer_version_base(default="1.0.0"):
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "VERSION"),
+                  "r", encoding="utf-8") as f:
+            v = f.read().strip()
+            return v or default
+    except OSError:
+        return default
+
+
+APP_VERSION = _leer_version_base()
+APP_PORT = int(os.environ.get("APP_PORT", "5000"))  # lo usa el relanzador
+# Canal de actualizaciones. Override por entorno para pruebas de staging o para
+# apuntar a un canal propio: SIDESYS_UPDATE_URL debe terminar en '/' o en el
+# nombre de archivo del metadato.
+_CANAL_DEFECTO = "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/"
+_CANAL = (os.environ.get("SIDESYS_UPDATE_URL") or _CANAL_DEFECTO).rstrip("/") + "/"
+VERSION_URL = _CANAL + "version.json"
+UPDATE_URL = _CANAL + "updates/"
+
+# ============================================================
+# VERIFICACIÓN DE FIRMA DEL CANAL DE ACTUALIZACIÓN (C5)
+# ============================================================
+def _verificar_metadato_firmado(url, etiqueta):
+    """Descarga <url> y su sidecar firmado <url>.sig y verifica la firma Ed25519.
+
+    Fail-closed (C5): si falta el .sig, la firma no valida o hay cualquier
+    error de red/parseo, devuelve (None, mensaje). Nunca se confía en un
+    metadato (version.json / manifest.json) sin firma válida.
+    """
+    try:
+        import requests
+        from modules.shared.update_firma import verificar_firma
+        resp = requests.get(url, timeout=10)
+        resp.raise_for_status()
+        contenido = resp.content
+        resp_sig = requests.get(url + '.sig', timeout=10)
+        resp_sig.raise_for_status()
+        if not verificar_firma(contenido, resp_sig.text):
+            return None, (f"[WARN] {etiqueta} ignorado: firma inválida o .sig faltante "
+                          f"(canal comprometido o release sin firmar)")
+        return contenido, None
+    except Exception as e:
+        return None, f"[WARN] No se pudo verificar {etiqueta}: {e}"
 
 # ============================================================
 # FUNCIÓN PARA OBTENER LA RUTA DE INSTALACIÓN REAL
@@ -66,11 +110,14 @@ from modules.cotizaciones import cotizaciones_bp
 from modules.shared.routes import shared_bp
 from modules.shared.database import set_contexto_base
 from modules.reportes import reportes_bp
-from config import BASE_DEFAULT, SOCIEDAD_DEFAULT
+from config import BASE_DEFAULT, SOCIEDAD_DEFAULT, BASES_DISPONIBLES
 from modules.shared.dashboard import dashboard_bp
 from modules.shared.auth import auth_bp
 from modules.shared.auth_windows import get_current_windows_user, validar_sesion
 from modules.shared.admin_api import admin_bp
+from modules.shared.usuarios import get_gestor_usuarios
+from modules.shared.decorators import requiere_admin, requiere_superadmin
+from modules.shared.relanzar import lanzar_relanzador
 
 # ============================================================
 # FUNCIONES DE ACTUALIZACIÓN (INTEGRADAS DIRECTAMENTE)
@@ -131,12 +178,40 @@ def comparar_versiones(v1: str, v2: str) -> int:
 
 def check_actualizaciones():
     try:
-        import requests
-        response = requests.get(VERSION_URL, timeout=10)
-        response.raise_for_status()
-        version_info = response.json()
+        # C5: solo se confía en un version.json con firma válida.
+        contenido, error = _verificar_metadato_firmado(VERSION_URL, 'version.json')
+        if contenido is None:
+            print(error)
+            return False, None
+        try:
+            version_info = json.loads(contenido.decode('utf-8'))
+        except Exception as e:
+            print(f"[WARN] version.json corrupto: {e}")
+            return False, None
+
         version_remota = version_info.get('version', '0.0.0')
+        # version_actual sale de version.txt (vive en ProgramData) y refleja lo
+        # que hay realmente en disco; APP_VERSION es el valor leido al arrancar
+        # y NO cambia tras aplicar una actualizacion.
         version_actual = obtener_version_actual()
+
+        # C5 - frescura: la firma garantiza autenticidad, no frescura. Si esta
+        # instalacion es anterior a la version MINIMA que declara el release, se
+        # avisa. La actualizacion SE SIGUE OFRECIENDO (bloquearla aca dejaria a
+        # esa PC sin forma de llegar a la version nueva); el limite duro se
+        # aplica al instalar (ver verificar_y_actualizar).
+        min_version = version_info.get('min_version')
+        if min_version:
+            try:
+                if comparar_versiones(version_actual, str(min_version)) < 0:
+                    msg = (f"Esta instalación ({version_actual}) es anterior a la mínima "
+                           f"recomendada ({min_version}). Se recomienda la instalación "
+                           f"completa.")
+                    print(f"[WARN] {msg}")
+                    version_info['aviso_version_minima'] = msg
+            except Exception as e:
+                print(f"[WARN] min_version ilegible ({min_version}): {e}")
+
         if comparar_versiones(version_actual, version_remota) < 0:
             return True, version_info
         return False, version_info
@@ -157,9 +232,16 @@ def descargar_archivos_diferenciales(version_info):
             return success, archivos, []
 
         print(f"📥 Descargando manifest de versión {version_remota}...")
-        response = requests.get(manifest_url, timeout=10)
-        response.raise_for_status()
-        manifest_remoto = response.json()
+        # C5: el manifest viaja firmado; sin firma válida no se procesa.
+        contenido_manifest, error = _verificar_metadato_firmado(manifest_url, 'manifest.json')
+        if contenido_manifest is None:
+            print(error)
+            return False, [], []
+        try:
+            manifest_remoto = json.loads(contenido_manifest.decode('utf-8'))
+        except Exception as e:
+            print(f"[WARN] manifest.json corrupto: {e}")
+            return False, [], []
 
         archivos_eliminar = []
         if deleted_url:
@@ -174,11 +256,17 @@ def descargar_archivos_diferenciales(version_info):
         app_dir = obtener_ruta_instalacion()
 
         for file_path, info_remoto in manifest_remoto.items():
+            hash_remoto = info_remoto.get('hash')
+            if not hash_remoto:
+                # El manifest viene firmado, pero sin hash no hay verificación
+                # posible: fail-closed (no se pisa el archivo a ciegas).
+                print(f"   ✗ {file_path} sin hash en el manifest: se omite")
+                continue
             local_path = os.path.join(app_dir, file_path)
             if os.path.exists(local_path):
                 with open(local_path, 'rb') as f:
                     local_hash = hashlib.sha256(f.read()).hexdigest()
-                if info_remoto['hash'] != local_hash:
+                if hash_remoto != local_hash:
                     archivos_actualizar.append(file_path)
             else:
                 archivos_actualizar.append(file_path)
@@ -193,6 +281,14 @@ def descargar_archivos_diferenciales(version_info):
         for idx, file_path in enumerate(archivos_actualizar, start=1):
             file_path_normalized = file_path.replace('\\', '/')
             file_url = f"{files_url.rstrip('/')}/{file_path_normalized}"
+            # BUG HISTORICO: aca se usaba `info_remoto`, la variable que quedaba
+            # del bucle de comparacion (el ULTIMO archivo del manifest), asi que
+            # se validaba el hash de otro archivo y TODA actualizacion abortaba
+            # con "Hash invalido". Se busca la entrada del archivo que se baja.
+            info_remoto = manifest_remoto.get(file_path)
+            if not info_remoto:
+                print(f"   ✗ {file_path} no está en el manifest firmado: se aborta")
+                return False, [], []
             guardar_estado_actualizacion(
                 'descargando',
                 f'Descargando archivo {idx}/{total_archivos}: {file_path_normalized}',
@@ -201,15 +297,23 @@ def descargar_archivos_diferenciales(version_info):
             try:
                 response = requests.get(file_url, timeout=30)
                 response.raise_for_status()
+                contenido = response.content
+                # C5: verificar SHA-256 contra el manifest firmado antes de guardar.
+                hash_esperado = info_remoto.get('hash')
+                if not hash_esperado or hashlib.sha256(contenido).hexdigest() != hash_esperado:
+                    print(f"   ✗ Hash inválido en {file_path}: se aborta la actualización "
+                          f"(url={file_url} http={response.status_code} "
+                          f"len={len(contenido)} esperado={hash_esperado})")
+                    return False, [], []
                 temp_file = os.path.join(UPDATE_DIR, file_path)
                 os.makedirs(os.path.dirname(temp_file), exist_ok=True)
                 with open(temp_file, 'wb') as f:
-                    f.write(response.content)
+                    f.write(contenido)
                 archivos_descargados.append({
                     'path': file_path,
-                    'size': len(response.content)
+                    'size': len(contenido)
                 })
-                print(f"   ✓ {file_path} ({len(response.content)} bytes)")
+                print(f"   ✓ {file_path} ({len(contenido)} bytes)")
             except Exception as e:
                 print(f"   ✗ Error descargando {file_path}: {e}")
                 return False, [], []
@@ -339,6 +443,9 @@ def verificar_y_actualizar():
     print("   Cambios:")
     for cambio in version_info.get('changelog', []):
         print(f"   • {cambio}")
+    if version_info.get('aviso_version_minima'):
+        print()
+        print(f"   ⚠️ {version_info['aviso_version_minima']}")
     print()
 
     print("\n📥 Descargando actualización...")
@@ -348,7 +455,11 @@ def verificar_y_actualizar():
     if version_info.get('manifest_url'):
         success, archivos, archivos_eliminar = descargar_archivos_diferenciales(version_info)
     else:
-        success, archivos = descargar_actualizacion_completa(version_info)
+        # C5: el canal legacy ZIP (sin manifest_url, sin firma por archivo) no se soporta.
+        print("⚠️ versión remota sin manifest_url: canal ZIP legacy no soportado, se omite")
+        guardar_estado_actualizacion('error', 'Canal ZIP legacy no soportado', version=version_remota, error='canal')
+        limpiar_archivos_temporales()
+        return None
 
     if not success:
         print("❌ Error al descargar la actualización")
@@ -366,8 +477,33 @@ def verificar_y_actualizar():
 
     guardar_version(version_remota)
     limpiar_archivos_temporales()
-    guardar_estado_actualizacion('completado', 'Actualización instalada correctamente', version=version_remota)
-    print(f"\n✅ Actualización a versión {version_remota} completada")
+    guardar_estado_actualizacion(
+        'reiniciando',
+        'Actualización instalada. Reiniciando la aplicación...',
+        version=version_remota)
+    print(f"\n✅ Actualización a versión {version_remota} instalada")
+
+    # Auto-reinicio: el codigo nuevo ya esta en disco, pero este proceso sigue
+    # ejecutando el viejo en memoria. El relanzador es un proceso desprendido
+    # que espera a que este PID muera y arranca la app de nuevo.
+    app_dir = obtener_ruta_instalacion()
+    ok, detalle = lanzar_relanzador(app_dir, puerto=APP_PORT, motivo='actualizacion')
+    if ok:
+        print(f"🔁 Reiniciando con la versión {version_remota}...")
+        guardar_estado_actualizacion(
+            'reiniciando',
+            f'Reiniciando con la versión {version_remota}...',
+            version=version_remota)
+        # Dar tiempo a que el frontend lea el estado antes de cortar.
+        time.sleep(1.5)
+        os._exit(0)
+    else:
+        print(f"⚠️ No se pudo lanzar el relanzador ({detalle}). "
+              f"Reiniciá la aplicación manualmente para aplicar los cambios.")
+        guardar_estado_actualizacion(
+            'completado',
+            'Actualización instalada. Reiniciá la aplicación para aplicarla.',
+            version=version_remota)
     return version_info
 
 def limpiar_archivos_temporales():
@@ -388,6 +524,9 @@ def limpiar_archivos_temporales():
 # ============================================================
 app = Flask(__name__, static_folder="frontend", static_url_path="")
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+# Ruta real de instalacion (registro HKCU -> fallback a la raiz de la app):
+# la usa /api/reiniciar para lanzar el relanzador en el lugar correcto.
+app.config['APP_INSTALL_DIR'] = obtener_ruta_instalacion()
 
 app.config['SECRET_KEY'] = SECRET_KEY
 app.config['SESSION_TYPE'] = 'filesystem'
@@ -404,88 +543,85 @@ CORS(app, supports_credentials=True, origins=ALLOWED_ORIGINS)
 # ============================================================
 # MIDDLEWARE DE CONTEXTO DE BASE
 # ============================================================
+def _usuario_puede_acceder_base(user_data, base):
+    """¿El usuario autenticado tiene permitido operar sobre esta base?
+    C4 (fail-closed): lista vacía/ausente = SIN acceso. Solo superadmin,
+    bases_permitidas=['*'] o membresía explícita habilitan."""
+    if not user_data:
+        return False
+    if user_data.get('es_superadmin'):
+        return True
+    bases = user_data.get('bases_permitidas') or []
+    if '*' in bases:
+        return True
+    return base in bases
+
+def _path_no_requiere_base(path):
+    """Endpoints que NO operan sobre bases de datos de países (sesión/admin):
+    no se les exige una base autorizada."""
+    return path.startswith('/api/auth/') or path.startswith('/api/admin/')
+
 @app.before_request
 def _resolver_base_activa():
-    base = request.headers.get("X-Base", BASE_DEFAULT)
+    """Resuelve la base de trabajo SOLO con sesión válida y base autorizada.
+
+    Sin sesión (o con sesión inválida) no se confía en el header X-Base:
+    se usa siempre BASE_DEFAULT. Con sesión, un X-Base explícito que no esté
+    entre las bases permitidas del usuario se rechaza con 403 (fail-closed).
+    Sin X-Base, la base por defecto se usa solo si el usuario puede operarla;
+    en APIs de datos se rechaza para que el cliente envíe una base permitida.
+    """
     sociedad = request.headers.get("X-Sociedad")
+
+    # 1) Sin sesión → contexto por defecto, ignorar X-Base por completo.
+    if 'username' not in session:
+        set_contexto_base(BASE_DEFAULT, sociedad)
+        return None
+
+    # 2) Sesión presente pero JWT inválido/expirado → no confiar en ella
+    #    (validar_sesion limpia la sesión en ese caso).
+    success, _ = validar_sesion()
+    if not success:
+        set_contexto_base(BASE_DEFAULT, sociedad)
+        return None
+
+    # 3) Con sesión válida: resolver user_data (cacheada en sesión por el SSO).
+    username = session.get('username')
+    user_data = session.get('user_data')
+    if not user_data or user_data.get('username') != username:
+        user_data = obtener_datos_usuario_completo(username)
+
+    base_pedida = request.headers.get("X-Base")
+    if base_pedida is None:
+        # Sin header: base por defecto.
+        base = BASE_DEFAULT
+        if not _usuario_puede_acceder_base(user_data, base):
+            if request.path.startswith('/api/') and not _path_no_requiere_base(request.path):
+                return jsonify({
+                    'error': f'Base "{base}" no autorizada para este usuario. Enviá X-Base con una base permitida.',
+                    'code': 'BASE_FORBIDDEN'
+                }), 403
+    elif base_pedida in BASES_DISPONIBLES and _usuario_puede_acceder_base(user_data, base_pedida):
+        base = base_pedida
+    else:
+        return jsonify({
+            'error': f'Base "{base_pedida}" no autorizada para este usuario',
+            'code': 'BASE_FORBIDDEN'
+        }), 403
+
     set_contexto_base(base, sociedad)
+    return None
 
 # ============================================================
 # FUNCIONES DE GESTIÓN DE ROLES Y PERMISOS
 # ============================================================
-def cargar_roles():
-    roles_path = os.path.join(os.path.dirname(__file__), 'data', 'roles.json')
-    try:
-        with open(roles_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"[ERROR] No se pudo cargar roles.json: {e}")
-        return {}
-
-def cargar_usuarios():
-    usuarios_path = os.path.join(os.path.dirname(__file__), 'data', 'usuarios.json')
-    try:
-        with open(usuarios_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"[ERROR] No se pudo cargar usuarios.json: {e}")
-        return {}
-
-def obtener_rol_usuario(user_data):
-    if 'rol' in user_data:
-        rol = user_data['rol']
-        if isinstance(rol, list) and len(rol) > 0:
-            return rol[0]
-        return rol
-    if 'roles' in user_data:
-        roles = user_data['roles']
-        if isinstance(roles, list) and len(roles) > 0:
-            return roles[0]
-        return 'usuario'
-    return 'usuario'
-
-def obtener_permisos_rol(rol_nombre):
-    roles = cargar_roles()
-    if rol_nombre in roles:
-        return roles[rol_nombre].get('permisos', [])
-    return []
-
 def obtener_datos_usuario_completo(username):
-    usuarios = cargar_usuarios()
-    user_data = usuarios.get(username, {})
-    if not user_data:
-        return None
-    rol_nombre = obtener_rol_usuario(user_data)
-    permisos = []
-    roles_data = cargar_roles()
-    if rol_nombre in roles_data:
-        permisos = roles_data[rol_nombre].get('permisos', [])
-    if 'permisos_extra' in user_data:
-        permisos.extend(user_data['permisos_extra'])
-    if 'permisos_restringidos' in user_data:
-        for restringido in user_data['permisos_restringidos']:
-            if restringido in permisos:
-                permisos.remove(restringido)
-    es_superadmin = (
-        user_data.get('es_superadmin', False) or
-        rol_nombre == 'superadmin' or
-        'admin.acceso' in permisos
-    )
-    return {
-        'username': user_data.get('username', username),
-        'nombre': user_data.get('nombre', username),
-        'email': user_data.get('email', ''),
-        'rol': rol_nombre,
-        'roles': user_data.get('roles', [rol_nombre]),
-        'permisos': permisos,
-        'es_superadmin': es_superadmin,
-        'activo': user_data.get('activo', True),
-        'bloqueado': user_data.get('bloqueado', False),
-        'bases_permitidas': user_data.get('bases_permitidas', ['*']),
-        'modulos_permitidos': user_data.get('modulos_permitidos', ['*']),
-        'permisos_extra': user_data.get('permisos_extra', []),
-        'permisos_restringidos': user_data.get('permisos_restringidos', [])
-    }
+    """C4: única fuente de verdad = GestorUsuarios (usuarios.json + roles.json).
+    Antes esta función leía los JSON crudos por duplicado y asumía
+    bases_permitidas=['*'] cuando faltaba la clave (inconsistente con el
+    gestor, que usa []). El gestor ya resuelve rol/permisos/superadmin."""
+    gestor = get_gestor_usuarios()
+    return gestor.datos_usuario_completo(username)
 
 # ============================================================
 # MIDDLEWARE DE AUTENTICACIÓN
@@ -496,10 +632,7 @@ def _verificar_autenticacion():
         '/api/auth/login', '/api/auth/login_sso',
         '/api/auth/check', '/api/auth/logout',
         '/frontend/', '/app.js', '/style.css', '/favicon.ico',
-        '/api/test', '/api/__version', '/api/version',
-        '/api/check_update', '/api/download_update', '/api/update/check',
-        '/api/update/install', '/api/update/notification', '/api/reiniciar',
-        '/api/dashboard/actividad'
+        '/api/test', '/api/__version', '/api/version'
     ]
     es_ruta_publica = False
     for ruta in rutas_publicas:
@@ -517,35 +650,32 @@ def _verificar_autenticacion():
             session.clear()
 
     if not request.path.startswith('/api/auth'):
-        username = get_current_windows_user()
-        if username:
-            try:
-                from modules.shared.usuarios import get_users, crear_usuario
-                users = get_users()
-                if username not in users:
-                    crear_usuario(
-                        username=username,
-                        password='',
-                        rol='usuario',
-                        nombre=username,
-                        email=f'{username}@sidesys.com'
-                    )
-                    users = get_users()
-                user = users.get(username, {})
-                if user.get('activo', True):
-                    user_data = obtener_datos_usuario_completo(username)
-                    if user_data:
-                        from modules.shared.auth_windows import crear_sesion
-                        session['username'] = username
-                        session['rol'] = user_data['rol']
-                        session['es_superadmin'] = user_data['es_superadmin']
-                        session['permisos'] = user_data['permisos']
-                        session['user_data'] = user_data
-                        crear_sesion(username, user_data['rol'])
-                    if request.path == '/' or es_ruta_publica:
-                        return None
-            except Exception as e:
-                print(f"[WARN] SSO automático falló: {e}")
+        # C4: SSO automático SOLO en la misma máquina (localhost) y SOLO si el
+        # usuario Windows ya está dado de alta (existe en el gestor) y está
+        # activo. Antes se auto-creaba la sesión del usuario del proceso para
+        # CUALQUIER request de la LAN (cualquiera heredaba la identidad del
+        # usuario que corre la app). Desconocidos/remotos → 401 + login
+        # explícito (/api/auth/login valida credenciales reales).
+        if request.remote_addr in ('127.0.0.1', '::1'):
+            username = get_current_windows_user()
+            if username:
+                try:
+                    gestor = get_gestor_usuarios()
+                    usuario_obj = gestor.usuarios.get(username)
+                    if usuario_obj and usuario_obj.activo and not usuario_obj.bloqueado:
+                        user_data = gestor.datos_usuario_completo(username)
+                        if user_data:
+                            from modules.shared.auth_windows import crear_sesion
+                            session['username'] = username
+                            session['rol'] = user_data['rol']
+                            session['es_superadmin'] = user_data['es_superadmin']
+                            session['permisos'] = user_data['permisos']
+                            session['user_data'] = user_data
+                            crear_sesion(username, user_data['rol'])
+                        if request.path == '/' or es_ruta_publica:
+                            return None
+                except Exception as e:
+                    print(f"[WARN] SSO automático falló: {e}")
 
     if es_ruta_publica or request.path == '/':
         return None
@@ -664,6 +794,7 @@ def api_check_update():
         }), 500
 
 @app.route("/api/download_update", methods=['POST'])
+@requiere_admin
 def api_download_update():
     try:
         hay, version_info = check_actualizaciones()
@@ -711,13 +842,14 @@ def api_update_notification():
                 'version': version_info.get('version'),
                 'release_date': version_info.get('release_date'),
                 'changelog': version_info.get('changelog', []),
-                'url': '/api/download_update'
+                'url': '/api/download_update',
+                # C5 - frescura: aviso informativo (no bloquea la actualizacion)
+                'aviso': version_info.get('aviso_version_minima')
             })
-        else:
-            return jsonify({
-                'has_update': False,
-                'message': 'No hay actualizaciones disponibles'
-            })
+        return jsonify({
+            'has_update': False,
+            'message': 'No hay actualizaciones disponibles'
+        })
     except Exception as e:
         return jsonify({
             'has_update': False,
@@ -732,6 +864,7 @@ def api_update_check():
     return api_check_update()
 
 @app.route('/api/update/install', methods=['POST'])
+@requiere_admin
 def api_update_install():
     guardar_estado_actualizacion('descargando', 'Iniciando actualización...')
     return api_download_update()
@@ -746,28 +879,40 @@ def api_update_status():
     except Exception as e:
         return jsonify({'estado': 'error', 'error': str(e)}), 500
 
-@app.route('/api/reiniciar', methods=['POST'])
-def api_reiniciar():
-    try:
-        app_dir = obtener_ruta_instalacion()
-        vbs_path = os.path.join(app_dir, "Iniciar_ADM-ERP.vbs")
-        pid_actual = os.getpid()
-        if not os.path.exists(vbs_path):
-            return jsonify({'error': f'No se encontró {vbs_path}'}), 500
-        cmd = f'timeout /t 2 /nobreak & taskkill /F /PID {pid_actual} & start "" wscript.exe "{vbs_path}"'
-        subprocess.Popen(
-            ["cmd", "/c", cmd],
-            creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
-            close_fds=True,
-            cwd=app_dir
-        )
-        return jsonify({'status': 'reiniciando'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+# NOTA C4: /api/reiniciar vive en modules/shared/routes.py (con @requiere_superadmin).
+# La copia duplicada que había acá en app.py se eliminó: quedaba shadoweada según
+# el orden de registro de rutas y no tenía control de permisos.
 
 @app.route('/favicon.ico')
 def favicon():
     return '', 204
+
+# ============================================================
+# CABECERAS DE SEGURIDAD (C9) - CSP FUERTE
+# ============================================================
+# script-src 'self' (sin inline ni eval): todo el JS vive en archivos propios.
+# style-src permite 'unsafe-inline' porque el HTML usa style="" inline.
+# El index.html NO debe contener <script> inline ni onclick= (usar data-onclick).
+@app.after_request
+def aplicar_cabeceras_seguridad(response):
+    response.headers.setdefault(
+        'Content-Security-Policy',
+        "default-src 'self'; "
+        "script-src 'self'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: blob:; "
+        "font-src 'self' data:; "
+        "connect-src 'self'; "
+        "media-src 'self' blob:; "
+        "object-src 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'; "
+        "frame-ancestors 'none'"
+    )
+    response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    response.headers.setdefault('X-Frame-Options', 'DENY')
+    response.headers.setdefault('Referrer-Policy', 'no-referrer')
+    return response
 
 # ============================================================
 # API - TEST
@@ -785,9 +930,8 @@ def test_api():
 # API - DEBUG STOCK
 # ============================================================
 @app.route('/api/debug/stock', methods=['GET'])
+@requiere_superadmin
 def debug_stock():
-    if 'username' not in session:
-        return jsonify({'error': 'No autenticado'}), 401
     try:
         from modules.shared.database import run_sql
         info = {
@@ -879,6 +1023,24 @@ if __name__ == "__main__":
         print("[WARN] ⚠️ DEBUG activado en producción - DESACTIVANDO")
         debug_mode = False
 
+    # ============================================================
+    # CONFIGURACIÓN DE BIND / TLS (C8)
+    # ============================================================
+    # C8: por defecto la app escucha SOLO en 127.0.0.1. Para uso multi-PC en
+    # LAN hay que setear APP_HOST=0.0.0.0 explícitamente (idealmente con TLS).
+    app_host = os.environ.get('APP_HOST', '127.0.0.1')
+    app_port = APP_PORT  # ya validado al definir la constante (linea 40)
+    tls_cert = os.environ.get('APP_TLS_CERT', '').strip()
+    tls_key = os.environ.get('APP_TLS_KEY', '').strip()
+    tls_activo = bool(tls_cert and tls_key)
+    if bool(tls_cert) != bool(tls_key):
+        print("❌ APP_TLS_CERT y APP_TLS_KEY deben definirse JUNTOS (cert PEM + key PEM)")
+        sys.exit(1)
+    if app_host not in ('127.0.0.1', 'localhost', '::1') and not tls_activo:
+        print(f"[WARN] ⚠️ Escuchando en {app_host}:{app_port} SIN TLS: el tráfico va en claro por la LAN.")
+        print("       Para cifrarlo definí APP_TLS_CERT/APP_TLS_KEY (o usá un reverse proxy con TLS).")
+    esquema = 'https' if tls_activo else 'http'
+
     print("=" * 60)
     print("  SIDESYS ERP - MODO DESARROLLO")
     print("=" * 60)
@@ -890,6 +1052,9 @@ if __name__ == "__main__":
     print("  Sistema de Actualizaciones: ACTIVADO")
     print(f"  Entorno: {FLASK_ENV}")
     print(f"  DEBUG: {debug_mode}")
+    print(f"  Bind: {app_host}:{app_port} ({esquema})")
+    if tls_activo:
+        print(f"  TLS: activo (cert={tls_cert})")
     print("=" * 60)
     print()
 
@@ -905,7 +1070,7 @@ if __name__ == "__main__":
             if proc.info['name'].lower() in navegadores:
                 try:
                     for conn in proc.net_connections():
-                        if conn.laddr.port == 5000:
+                        if conn.laddr.port == app_port:
                             pid_navegador = proc.info['pid']
                             break
                 except:
@@ -925,9 +1090,12 @@ if __name__ == "__main__":
 
     threading.Thread(target=monitorear_navegador, daemon=True).start()
 
+    ssl_ctx = (tls_cert, tls_key) if tls_activo else None
+    print(f"🚀 Servidor disponible en {esquema}://localhost:{app_port}")
     app.run(
-        host="0.0.0.0",
-        port=5000,
+        host=app_host,
+        port=app_port,
         debug=debug_mode,
-        threaded=True
+        threaded=True,
+        ssl_context=ssl_ctx
     )

@@ -2,18 +2,6 @@
 // STOCK - TRANSFERENCIAS (CORREGIDO)
 // ============================================================
 
-function escapeHTML(str) {
-    if (!str) return '';
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return String(str).replace(/[&<>"']/g, function(m) { return map[m]; });
-}
-
 function sanitizarValor(val) {
     if (val === undefined || val === null) return '';
     return escapeHTML(String(val));
@@ -61,9 +49,13 @@ async function hacerTransferenciaIndividual() {
   const data = await resp.json();
   if (resp.ok) {
     const numeroSanitizado = sanitizarValor(data.numero_transferencia);
-    mostrarMsg(`Transferencia #${numeroSanitizado} cargada correctamente.`, true);
+    mostrarResultadoSeccion("trm-resultados", true, `Transferencia #${numeroSanitizado} cargada correctamente.`);
+    const cantInput = document.getElementById("tr-cantidad");
+    if (cantInput) cantInput.value = '';
+    const fechaInput = document.getElementById("tr-fecha");
+    if (fechaInput) fechaInput.value = '';
   } else {
-    mostrarMsg(`Error: ${sanitizarValor(data.error)}`, false);
+    mostrarResultadoSeccion("trm-resultados", false, `Error: ${data.error}`);
   }
 }
 
@@ -80,12 +72,12 @@ async function cargarLoteTransferencia() {
     if (partidaInput && partidaInput.value) fila.partida = parseInt(partidaInput.value);
     filas.push(fila);
   });
-  if (filas.length === 0) { mostrarMsg("No hay filas para cargar.", false); return; }
+  if (filas.length === 0) { mostrarToastFlotante(false, "No hay filas para cargar."); return; }
   const resp = await fetch(`${API}/transferencia/lote`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ filas }) });
   const data = await resp.json();
   mostrarResultadosLote("trm-resultados", data.resultados);
   const exitosos = data.resultados.filter(r => !r.error).length;
-  mostrarMsg(`${exitosos} de ${filas.length} filas cargadas correctamente.`, exitosos === filas.length);
+  mostrarToastFlotante(exitosos === filas.length, `${exitosos} de ${filas.length} filas cargadas correctamente.`);
 }
 
 // ============================================================
@@ -94,6 +86,5 @@ async function cargarLoteTransferencia() {
 window.cargarPartidasTransferencia = cargarPartidasTransferencia;
 window.cargarLoteTransferencia = cargarLoteTransferencia;
 window.hacerTransferenciaIndividual = hacerTransferenciaIndividual;
-window.escapeHTML = escapeHTML;
 
 console.log('✅ Stock - Transferencias cargado (XSS sanitizado)');

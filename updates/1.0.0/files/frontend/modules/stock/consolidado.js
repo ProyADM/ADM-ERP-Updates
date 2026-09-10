@@ -6,18 +6,6 @@
 // FUNCIÓN DE SANITIZACIÓN
 // ============================================================
 
-function escapeHTML(str) {
-    if (!str) return '';
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return String(str).replace(/[&<>"']/g, function(m) { return map[m]; });
-}
-
 function sanitizarValor(val) {
     if (val === undefined || val === null) return '';
     return escapeHTML(String(val));
@@ -149,7 +137,7 @@ async function buscarConsolidado(actualizarMarcas = false) {
     const borderTop = f.primera_fila ? "" : "border-top:none;";
     const nuevoIndicador = ""; // 🔴 Desactivado
 
-    const modalClick = inc ? ` onclick="window.abrirModalCorregir && window.abrirModalCorregir('${codigo}', event)"` : "";
+    const modalClick = inc ? ` data-onclick="window.abrirModalCorregir && window.abrirModalCorregir('${codigo}', event)"` : "";
 
     const codigoCell = f.primera_fila
       ? `<td style="${stickyBase}left:0;background:${bgInc};font-weight:700;color:${colorInc};${borderTop}${inc ? "cursor:pointer;" : ""}"${titleInc}${modalClick}>${inc ? "⚠ " : ""}${codigo}${nuevoIndicador}</td>`
@@ -410,6 +398,5 @@ window.cerrarModalCorregir = cerrarModalCorregir;
 window.aplicarCorreccionModal = aplicarCorreccionModal;
 window.cerrarToast = cerrarToast;
 window.irConsolidadoDesdeToast = irConsolidadoDesdeToast;
-window.escapeHTML = escapeHTML;
 
 console.log('✅ Stock - Consolidado cargado (XSS sanitizado, sin llamadas a rutas inexistentes)');

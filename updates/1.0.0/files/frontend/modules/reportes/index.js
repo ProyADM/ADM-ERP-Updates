@@ -81,19 +81,6 @@ export function cambiarReporte(tipo) {
         container.style.display = 'block';
         container.classList.add('active');
 
-        // Mostrar/ocultar botones de ventas manuales
-        const btnManual = document.getElementById('btn-cargar-venta-manual');
-        const btnAdmin = document.getElementById('btn-admin-ventas-manuales');
-        if (btnManual && btnAdmin) {
-            if (tipo === 'consolidado-total') {
-                btnManual.style.display = 'inline-block';
-                btnAdmin.style.display = 'inline-block';
-            } else {
-                btnManual.style.display = 'none';
-                btnAdmin.style.display = 'none';
-            }
-        }
-
         // 🔴 ACTUALIZAR EL TÍTULO DE LA SECCIÓN
         actualizarTituloReporte(tipo);
 
@@ -219,7 +206,10 @@ const REPORTES_GLOBALES = [
     'consolidado-total' // Ventas Globales (muestra todos los países)
 ];
 
-document.addEventListener('baseChanged', function(e) {
+// Escuchar en `window`: app.js despacha el CustomEvent 'baseChanged' con
+// window.dispatchEvent() y SIN bubbles, así que un listener en `document`
+// nunca se disparaba → la recarga selectiva por base no funcionaba.
+window.addEventListener('baseChanged', function(e) {
     console.log('🔄 Base cambiada a:', e.detail.base);
     
     // Obtener el reporte actual

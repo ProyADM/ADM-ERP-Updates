@@ -1,43 +1,23 @@
 {
   "app.py": {
-    "hash": "e17cdb48b00b944b5ac25c1a9fe5237b6643d85142ce8850a14f475cae2b2a15",
-    "size": 37312
+    "hash": "ace6b7757a010069be5e62bc17f38c33c956f390522713a4ef01fbe8722ccdb1",
+    "size": 47199
   },
   "config.py": {
-    "hash": "d6cd60c94108adc04f9a2b5461bcd6c1545e73f67c7a17f52e988e8c6d8fcca0",
-    "size": 12984
+    "hash": "6cc6d62df20f995d3a41a921966e75c1a40fe3b166a68181fe07681d5b58ef6a",
+    "size": 14740
   },
   "crypto_utils.py": {
-    "hash": "e0a885a25af912289fd5396ec89608be446d66f7076fc2a5d780a223cb205a20",
-    "size": 14375
+    "hash": "3820ef77e2c06a2574af2e724acaf3ae4f029487b2975ea473646aa1e687d2ec",
+    "size": 16377
   },
   "cuentas.py": {
     "hash": "33840167ce77a16fba8737b466c486dbe02a9a63a0a6c3d5358d467221b57d22",
     "size": 4277
   },
-  "estructura_proyecto.txt": {
-    "hash": "77453ebece9e58379ca0856fca05fb0785eed538abd67e46e7a990adcd6edc8a",
-    "size": 1246256
-  },
-  "manifest.json": {
-    "hash": "168ce5857fe76d52088d888e3b631e29ef078b39c9b67b3c3bb726bf33d574cc",
-    "size": 18038
-  },
-  "requirements.txt": {
-    "hash": "35dd98a64d02e14f181104e469c9d35ed0271c084e9b785c9a86c11874b0379e",
-    "size": 682
-  },
-  "version.json": {
-    "hash": "261647e847e19ef56a9666c51d863455d83af42e6885fec9228846bcca9fc96d",
-    "size": 793
-  },
   "frontend/app.js": {
-    "hash": "6a1a316cefe8fab624ea4e6c6452950ebffda746fe82e20efa8a1f9f476dd1c3",
-    "size": 34971
-  },
-  "frontend/index.html": {
-    "hash": "2fd0db4c889ba45c581cc1ae11b8f2185106cdcbebdae8a1e64f9ef48731d5ff",
-    "size": 23319
+    "hash": "beb46cb2b1a771c904c67035dab49c5835f3065fa11765f37b2655e4c2b202c1",
+    "size": 53364
   },
   "frontend/css/cotizaciones.css": {
     "hash": "8b3053c230b8bb787e6d23f0f8e99240da66d7303de64fdc2cd90481334a4ac7",
@@ -63,25 +43,17 @@
     "hash": "78e18b5f9c078b6aadb3ff704584aa649e8a11df1131a9cb2993ee25f9505f93",
     "size": 13067
   },
+  "frontend/index.html": {
+    "hash": "f6bd552c4dcc13b9fa51aa9aaa2feda7244705cda668595ff833830a09e6c0f2",
+    "size": 20158
+  },
   "frontend/modules/cotizaciones.js": {
-    "hash": "841355cdcfeef8d17ea807586dd6e5fe4fc5c55838007cc289714eca6c66ad94",
-    "size": 12614
-  },
-  "frontend/modules/dashboard.js": {
-    "hash": "11b8fd13034f81723ea9846d07c3af82cebfd33c65503d73adb936bb4a7e93d2",
-    "size": 4271
-  },
-  "frontend/modules/notificaciones.js": {
-    "hash": "bac6d6e4ec14f7643131ec90f3daccbcdd8ac62d234d3a70464ed7d69042b15a",
-    "size": 6797
-  },
-  "frontend/modules/templates.js": {
-    "hash": "454030df5380e9727971eb27bc6af74c2d181015292f4f26a938a72e8af25cd8",
-    "size": 54841
+    "hash": "24462693a067bce1f2128094570c33fece4a5bfad17378fad3c8bfd1253d4e11",
+    "size": 19353
   },
   "frontend/modules/cxp/eliminar.js": {
-    "hash": "2f8218cc853ad2b4e6483320b441bb362b65747adb706416e67a9df33f88a61d",
-    "size": 3583
+    "hash": "24a277188539f1c4bcf960c5b06cc0b73273ae2f54c7198c08657b54edb10e60",
+    "size": 3607
   },
   "frontend/modules/cxp/eventuales.js": {
     "hash": "9362c4a52f559c4ec962c6b5b645636be3ca04ba084a7422fa9324261e62e280",
@@ -92,136 +64,160 @@
     "size": 2782
   },
   "frontend/modules/cxp/init.js": {
-    "hash": "16ebc42a0ba5be86ebb21efb0e54e594cd00147be88a78bf34bf6edcbedb2bb1",
-    "size": 10414
+    "hash": "c2e12b19929742eafd225aab17160ca9d51cf049c89bbe59156b8a6ca53e0a3f",
+    "size": 10526
   },
   "frontend/modules/cxp/main.js": {
-    "hash": "00a04fca01d09137bcb1cc97208c917e357efaad6ba4a42147aa09998c51341a",
-    "size": 14875
+    "hash": "d5eff4c4a798203d9001c32ebc8e8abd1e1599819ea0f8ff7bd23f3e892473c2",
+    "size": 14598
   },
   "frontend/modules/cxp/render.js": {
-    "hash": "b0c45fdd12474ab89327ed2f3eb39664093061466d1956650b748b6826b9570a",
-    "size": 15051
+    "hash": "d36a51bc219c7f9b1abdcdc410206f24195b6a1e6f1eede5133d7ff78eff521b",
+    "size": 14846
   },
   "frontend/modules/cxp/renglones.js": {
     "hash": "f100d830f009d362d0c1bbd83e4ff34ad5abbe6d5fbf7b2aa3630ca709dcc0bb",
     "size": 15982
   },
   "frontend/modules/cxp/ui.js": {
-    "hash": "89365661b9c6ae00ce5a5075b1089e088000660fb337661d5dd187f86d902bd9",
-    "size": 6385
+    "hash": "f1fff99eb87b2c097ba5b88b11ee4a70eab3b612237d757a4e9f627424f2171a",
+    "size": 6108
   },
   "frontend/modules/cxp/utils.js": {
     "hash": "30d55634f6569d17f13488286b1539af95d8226baa3ff6d3a45aa8ddc9cfc76b",
     "size": 4856
   },
+  "frontend/modules/dashboard.js": {
+    "hash": "d82771514335e23559ff7273b35ef6b3d3103865055ab57d5dac99b1419beb45",
+    "size": 4037
+  },
+  "frontend/modules/init.js": {
+    "hash": "659bf3f241e7433fa37da2bbe15f060956d572a0dc477e3586996ffd0d4041d1",
+    "size": 5693
+  },
+  "frontend/modules/notificaciones.js": {
+    "hash": "a79293943d6f5f3557b0eaaf838f4a44817e7677e23a9d35c079a8fd9ddd7861",
+    "size": 7084
+  },
   "frontend/modules/reportes/consolidado_pais.js": {
-    "hash": "53644da8bc74fbf9bf3cd5050ee92e8fa58874ae45b5c5b6b4f04f6b32aeeb6a",
-    "size": 22808
+    "hash": "1e4362629325add8fc3362bc51d845dfe11b0d07c4a428e900549bfec76c9e4d",
+    "size": 22895
   },
   "frontend/modules/reportes/consolidado_total.js": {
-    "hash": "1fdb3b2c981d17e8a24de6064ad3e1c3595feb728a8f3289c34e12a4f024fcb3",
-    "size": 27338
+    "hash": "cb565d96d1e7491856b5f9539525f0f147dafbdb8c7a3a7ff2530a3342418b40",
+    "size": 27601
   },
   "frontend/modules/reportes/contratos.js": {
-    "hash": "d60f2519cf2c88e3dab33f82af4defe864e689c776add2e8b39d4ab81437d159",
-    "size": 22562
+    "hash": "2f4cff3dbecd8e6af8f1211b174c49b1e43d78c4b01cf7213006038af67ac5b5",
+    "size": 21789
   },
   "frontend/modules/reportes/index.js": {
-    "hash": "1286dfb5d59f6bb9a3b4951e396f8060045444e7c46df1fb5eac66a950607c97",
-    "size": 9954
+    "hash": "e3df0b3d72eae777dd8a0ec1eb67352aa15ea300b571a678b7fba2420df1f5e4",
+    "size": 9607
   },
   "frontend/modules/reportes/pendiente_cobro.js": {
-    "hash": "af2f59ade2e2326401de89df0e2c26ce1b93bf7711a389b8063fef9d9cfef6a4",
-    "size": 14217
+    "hash": "1e656f444870a8e76001c8396859507347d3b7a174083b5c283e0f154a002de7",
+    "size": 18622
   },
   "frontend/modules/reportes/ventas_manuales.js": {
-    "hash": "302c90b20fffc4ecba901e01856922335fe3c097c31997d9f8d013a78e308dc4",
-    "size": 18097
+    "hash": "404564f9d4a575870973914f15b710faeab5ae7aaad1e9b03a2fdca2c880688c",
+    "size": 17766
   },
   "frontend/modules/shared/paises.js": {
     "hash": "b3a255ba9ebfe8d949982b709366d880edd284e0a0fa3b1ebf8829c49ee40c84",
     "size": 2265
   },
+  "frontend/modules/shared/seguridad.js": {
+    "hash": "4db9a8195ebaf071a289f9f1736b58379c87debcd675375bd8963e0f3da843ad",
+    "size": 1206
+  },
   "frontend/modules/shared/tooltip-component.js": {
-    "hash": "a4d78b8625eb195fca15c9095492372554423d1be078e015a5af196b0d305ae4",
-    "size": 6925
+    "hash": "d63442956e46bdf41afa10667ecdc43c7166e3e40941c373c426e8639b7be3ec",
+    "size": 6930
   },
   "frontend/modules/shared/tooltips.js": {
     "hash": "1a414c5a09bb42cd3dd933573dddf4fa6621e03b23dcfadecd93d998605ae86b",
     "size": 16358
   },
   "frontend/modules/stock/ajustes.js": {
-    "hash": "9047fb4aef82b9eabb1e74d3ac0908d4289f62b6a096962ee2bbca3b37cd46ec",
-    "size": 10891
+    "hash": "06fd91df8813a60ebd9bc1013342fb9371718294c534e69dc43cc5ab419963e8",
+    "size": 11229
   },
   "frontend/modules/stock/articulos.js": {
-    "hash": "0d623389f926cd2647ae9bc13c9fae5ff7a25e9a637b19eef7ff8772114c8be9",
-    "size": 9513
+    "hash": "5aad8084c3d6a6198600de1a3bc480504a4fac27b9d6bc3c68abcacc6909f97f",
+    "size": 9203
   },
   "frontend/modules/stock/consolidado.js": {
-    "hash": "96cf15f0bb9132d42bd54e0be8fb9e38d623a23a463bb17e3c67cff5610ba35d",
-    "size": 18158
+    "hash": "52b98654562bbdedd8a6e7a806b5b2328eefd382b839860d4c84ad63719ce3df",
+    "size": 17853
   },
   "frontend/modules/stock/consultar.js": {
-    "hash": "ab9ca25b266edee544372426807c060b363cd2ed821a8eacbc141f0b8f27d3c0",
-    "size": 10207
+    "hash": "9f36a0e15c7f03545808fea432c70ddc8cab245b5663903999c589540ddd5ed8",
+    "size": 9917
   },
   "frontend/modules/stock/depositos.js": {
-    "hash": "79c73f695a42998b2ddc39264f08e4ef2a5fb148ff781648b0f489176cb6ecc3",
-    "size": 3749
+    "hash": "19adc46b6de62ea371c639bc69ae6015834d6efbd7ddb0e247a8eb42789b4bd7",
+    "size": 3439
   },
   "frontend/modules/stock/excel.js": {
-    "hash": "9de1d5d17bcf96fe6d3ef5dd57d1b41e217ca01b211e4939888c0b399bf6186f",
-    "size": 2373
+    "hash": "ed568661a3f1551ab1364d1913c7b25eecfe71c357f9f3c1faa389484cc78b5a",
+    "size": 2063
   },
   "frontend/modules/stock/index.js": {
-    "hash": "e602e7c0964a94a36f76e371332c921e578738ad0dadc5c642ad89b1daa2712d",
-    "size": 3340
+    "hash": "dc8540d7f6d0c60ece75992299ba2b33b127b200fb35353fafd591ce09eae8b6",
+    "size": 3801
   },
   "frontend/modules/stock/transferencias.js": {
-    "hash": "182aceccc5ccdbe7497946b24423e058ee27fafb37fdb22d920e7c5b5ca9a073",
-    "size": 4643
+    "hash": "ee71901e9bc74dc7e77e66cb878183f4278c2240ace605fc894dc12c71589fa8",
+    "size": 4609
   },
   "frontend/modules/stock/utils.js": {
-    "hash": "22c306b28e3f35f934c6cfea7c3096ec3e8303d4b943d08a787029e655f45bd7",
-    "size": 4482
+    "hash": "4010b610be5580adc2bd8fa05b64a1f4ffeb5ec17ff6a3b35a7a2bc8b8dcede5",
+    "size": 9770
+  },
+  "frontend/modules/templates.js": {
+    "hash": "23b6e8e2283b6b9780d592f616b8416bb01c25c50929f34c01c9a3147220ba65",
+    "size": 55633
   },
   "modules/__init__.py": {
     "hash": "86523d3e92614adaf18f612147310c0b27037896e1beb5daa90fbf6fcd9fc3e2",
     "size": 165
   },
-  "modules/cotizaciones/routes.py": {
-    "hash": "220aacbfe6df3d38321c178d95e7c6e757b52ab53d5aa79b6ae16c8c2cba0ed9",
-    "size": 18373
-  },
   "modules/cotizaciones/__init__.py": {
     "hash": "5f18f0e7ee63c96c2106cd2719e143cc08c1f0317e78176953422948fd600a21",
     "size": 66
+  },
+  "modules/cotizaciones/routes.py": {
+    "hash": "97f299d5506b58135b5228e9997ba24e3acba3ceee2841a3d8550457f9c7bcbc",
+    "size": 23353
+  },
+  "modules/cxp/__init__.py": {
+    "hash": "0da7d0358815d2e4aabae0a8d31f446f5f4dee334d8c8a0da69e86cf9bc659be",
+    "size": 442
   },
   "modules/cxp/parser.py": {
     "hash": "f1bcfc13153fa426c959d8e8fc6b3629ed66bd48b3cf89375137166ba22237f2",
     "size": 14705
   },
   "modules/cxp/routes.py": {
-    "hash": "73cfa739717b67111f8a2b0f397e83b7caa893bcd837e4f730b762c2b8188aaf",
-    "size": 28169
+    "hash": "ef3362f3d7171e3447bcdca9e20c54f325526277c669514e2868dd9e55d145db",
+    "size": 31870
   },
-  "modules/cxp/__init__.py": {
-    "hash": "0da7d0358815d2e4aabae0a8d31f446f5f4dee334d8c8a0da69e86cf9bc659be",
-    "size": 442
+  "modules/reportes/__init__.py": {
+    "hash": "7f9ce9532b85189c91da06e2f2d1d20e8e4b69a933e543bf41e1d45d259e4904",
+    "size": 89
   },
   "modules/reportes/config_clientes.py": {
     "hash": "3378c167679176a0f0a5485732c12f6a11a2fc99ea66271f6b62e41492ba18b5",
     "size": 5175
   },
   "modules/reportes/routes.py": {
-    "hash": "bdd5d9ff92ac0e5635ccc79df4b3c4f89a41a84ff1cd955dde398996a51e0a4b",
-    "size": 10560
+    "hash": "7d5f05c99df8afb5ab65952a6a959307638432d780c52c4012cc3282628ac39d",
+    "size": 15701
   },
-  "modules/reportes/__init__.py": {
-    "hash": "7f9ce9532b85189c91da06e2f2d1d20e8e4b69a933e543bf41e1d45d259e4904",
-    "size": 89
+  "modules/reportes/services/__init__.py": {
+    "hash": "f75696ef12525794f3ae0210d48b312104dc5bada5c6d5757c77eed88a320522",
+    "size": 231
   },
   "modules/reportes/services/consolidado_pais_service.py": {
     "hash": "9ec893c1e0fef3f93030f3631e7ec8505dd874574bb5f5067f51364609dcfa6b",
@@ -240,171 +236,79 @@
     "size": 6502
   },
   "modules/reportes/services/utils.py": {
-    "hash": "304e0e7d02e949303701d64ac63452dad8556004aa8abf45ffac4e66b9fcbc6a",
-    "size": 8276
+    "hash": "fb0a271cdf8a7ee11f04cbd9a9fb27e0b36e160777db973b42abd5861d67b7d0",
+    "size": 9872
   },
   "modules/reportes/services/ventas_manuales_service.py": {
     "hash": "5fc50e25775552c174049357a73535127caa193dca8f66eff77e695f1bbb6b83",
     "size": 10992
   },
-  "modules/reportes/services/__init__.py": {
-    "hash": "f75696ef12525794f3ae0210d48b312104dc5bada5c6d5757c77eed88a320522",
-    "size": 231
+  "modules/shared/__init__.py": {
+    "hash": "78bebb995af9d5b4cc87be6a7b8db68ce726462d3711bed3337737c15ae1e4aa",
+    "size": 347
   },
   "modules/shared/admin_api.py": {
     "hash": "1575f03c8634e1b28420f55f0158617e7b39f8a50c791cc8d4533141caea24e3",
     "size": 20816
   },
   "modules/shared/auth.py": {
-    "hash": "97761c5ba8c198ed157d88c3efbd3a17625d0589008cab3bc66622cda8b57bc8",
-    "size": 9621
+    "hash": "20580c2b385567183c3a96fee4186a3e487c4192fbc0226ef8dd522ee7d1a899",
+    "size": 12819
   },
   "modules/shared/auth_windows.py": {
-    "hash": "d6c4c8252738f5aba56198aebe1226731717d8bb9080662241b9bafbe7fdbf7a",
-    "size": 10905
+    "hash": "a577a03d8d966c0cb499da47c17f6a817e937e9c30527669311544e6cf08a8ec",
+    "size": 11238
   },
   "modules/shared/dashboard.py": {
     "hash": "e2a393104016dd6d34807a9a98d87a245b33b078a9230d7d11740cc159b523c5",
     "size": 8076
   },
   "modules/shared/database.py": {
-    "hash": "88736044008940827acd7a1c70eaefe1f4b250e61a164712e7036983fcf4cfe4",
-    "size": 7985
+    "hash": "93c7ea184b28a99c1a30a284f6fbf1e2d6356cf9a1db11598eabccd3964ef461",
+    "size": 9600
   },
   "modules/shared/decorators.py": {
-    "hash": "78f86cbda14a4a4bf6ac73e32686a99289e690b865338303bddf9bc65d537135",
-    "size": 11681
+    "hash": "b03df29e3e513d760a071b241b43c959f178d779b8e95ce280d6a3f23e8c9595",
+    "size": 13516
   },
   "modules/shared/middleware.py": {
     "hash": "73eb393a46ec6664fd824c9b888c842b4fbd19d6ae3cacc385d174a2a8d1fb68",
     "size": 6243
   },
   "modules/shared/permisos.py": {
-    "hash": "39de2abc77d2a9d08feea66f6ca49b803d7579f24f245e03f71f09105724cfa8",
-    "size": 6731
+    "hash": "436708e5c45d7c98bc4640d5a41a9f68867d30c0c40b7a8690158eaf63423027",
+    "size": 7048
+  },
+  "modules/shared/relanzar.py": {
+    "hash": "1ba604a89853af36bfc6e022089ec733c7b43206503e5987a06695862ecb205d",
+    "size": 2789
   },
   "modules/shared/routes.py": {
-    "hash": "b35302486ad007bd2e17ee8a639f8f46149b10815d876a1e69d4f48f65277ffa",
-    "size": 6596
+    "hash": "e2024b68aa978ba9b710ebae0024e02db260258e67029b0aa1f8727e5986cebf",
+    "size": 7746
+  },
+  "modules/shared/update_firma.py": {
+    "hash": "375718e4aec806fff347b26d54b0a09b96163a58db55006361c83dc676f64fea",
+    "size": 3200
   },
   "modules/shared/usuarios.py": {
-    "hash": "70d19cc95b0b6d0d64f0402ecc5b0feb1ba5605636363441ea8385e25150651d",
-    "size": 33524
+    "hash": "e6347baeb7aea53c08685c5e685a69a5ffd3e919dd4d9575d88387eed76ea2dd",
+    "size": 36009
   },
   "modules/shared/utils.py": {
     "hash": "d48de4416860b3d79f5de76cf498e9a57ac785285d9d85c713f44e3f64b3123c",
     "size": 5046
   },
-  "modules/shared/__init__.py": {
-    "hash": "78bebb995af9d5b4cc87be6a7b8db68ce726462d3711bed3337737c15ae1e4aa",
-    "size": 347
-  },
-  "modules/stock/routes.py": {
-    "hash": "cf6c6d0b628bdcd149819c839d6519607af3e238b5256a2c05eaf3db055c281f",
-    "size": 61199
-  },
   "modules/stock/__init__.py": {
     "hash": "f1b8b00c77309f050ffbe8320af04b28366d1414593d3860b3e48e56d36fe243",
     "size": 237
   },
-  "scripts/audit.py": {
-    "hash": "78119a56bb1800d31707e2d31484d68c68579a3e1186b9599c6a483355d4a8dc",
-    "size": 21054
+  "modules/stock/routes.py": {
+    "hash": "80fc48b2afcca9e4e8ee6eb6f63f33635fe081d162d50aff00a18fdb1110a96f",
+    "size": 69613
   },
-  "scripts/deploy_update.py": {
-    "hash": "5333bbe0f2a790b699a4d6a9ea52cbe03f8be3e2d06a95c58df9bf6ab9b278a0",
-    "size": 14395
-  },
-  "scripts/generar_update.py": {
-    "hash": "e07ac706b046da9337615c14f671ed626184fdc21fde85dfa2286f615760c725",
-    "size": 9608
-  },
-  "scripts/installer.py": {
-    "hash": "c2af2feb8024de9a01bc468d37ddf1dde0d233523b035cf9ba5c0a5a1deb8482",
-    "size": 10272
-  },
-  "SidesysERP.egg-info/dependency_links.txt": {
-    "hash": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
-    "size": 2
-  },
-  "SidesysERP.egg-info/SOURCES.txt": {
-    "hash": "e83ef0f1cd749fe269a8f52a0133226b77799c074083628fc2f5effa8d8ee134",
-    "size": 158
-  },
-  "SidesysERP.egg-info/top_level.txt": {
-    "hash": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
-    "size": 2
-  },
-  "tesseract/ambiguous_words.1.html": {
-    "hash": "7361d4c477bd35d5fc66ce8a9bfb5c2b4ae9eab91e42148bed6873067d98997f",
-    "size": 17823
-  },
-  "tesseract/classifier_tester.1.html": {
-    "hash": "5454792d8f7813aad67795ffb48b6ba3742fbcad5ad7e95b3aa4e73accc032c6",
-    "size": 19529
-  },
-  "tesseract/cntraining.1.html": {
-    "hash": "73423b3fad7c547e8917b08329dbd603db794eff52a4eeee230e88a5b1d15f0f",
-    "size": 18156
-  },
-  "tesseract/combine_lang_model.1.html": {
-    "hash": "0424fbe925abedf763b38cdf36153b9269f11f412ff6d164a922652ecebb602f",
-    "size": 21055
-  },
-  "tesseract/combine_tessdata.1.html": {
-    "hash": "07e53161165d55789060cacac9e9e83ba274eeed1d4e6e9ecb486fb1ee982013",
-    "size": 27130
-  },
-  "tesseract/dawg2wordlist.1.html": {
-    "hash": "6541fccd5fdfc938175fd555eec2101bd78e673a3390521f5a7f04ad5fee4fd7",
-    "size": 18336
-  },
-  "tesseract/lstmeval.1.html": {
-    "hash": "0e6fe86891af3f96e84fd8ee77d2eeba248d837b6187108b2fbff9b5863a249d",
-    "size": 19519
-  },
-  "tesseract/lstmtraining.1.html": {
-    "hash": "5fecf0b238bf913e5979192140885f71a171a0f47056f6597be0cafa9afaba22",
-    "size": 22643
-  },
-  "tesseract/merge_unicharsets.1.html": {
-    "hash": "e8e565350d465ac83d14fa50bd5d35cac18c835fb5c46ebcb8e1f61574956466",
-    "size": 18944
-  },
-  "tesseract/mftraining.1.html": {
-    "hash": "16ac43815d3c5d6ed81a2df55add8466d13e4c918e1aaf0bbaf3758ed0a968c5",
-    "size": 19427
-  },
-  "tesseract/set_unicharset_properties.1.html": {
-    "hash": "e5848c9eb844d9f4002b1bde9da6a373320e6ef31757e486103aeca64c26c5c1",
-    "size": 19109
-  },
-  "tesseract/shapeclustering.1.html": {
-    "hash": "95391fb8bac0f788eeab08038c3cefd17a591c43555356a16a6350add59f48b2",
-    "size": 19448
-  },
-  "tesseract/tesseract.1.html": {
-    "hash": "bf41994d01d89e7082bb35c7b0fa4f5d6dcbf368ab35829b4d0098421f19dc01",
-    "size": 42220
-  },
-  "tesseract/text2image.1.html": {
-    "hash": "65dd8b72ee345e7ea95aa24c932fd1534d83e764b74f1ab459475f5898876c1a",
-    "size": 25663
-  },
-  "tesseract/unicharambigs.5.html": {
-    "hash": "0353dbd91477b479dbe4a38994c0c488d48b86a581dd64cb7804fe131565446d",
-    "size": 21249
-  },
-  "tesseract/unicharset.5.html": {
-    "hash": "b2df74b3abfad11c529ba7e167cc573ec345c66b285f1a688739df95cb2bfbff",
-    "size": 23829
-  },
-  "tesseract/unicharset_extractor.1.html": {
-    "hash": "ad8140c54167f8d46ddc7b42f47963a3a46869ffda3c43fbec2f88124e92ef00",
-    "size": 18811
-  },
-  "tesseract/wordlist2dawg.1.html": {
-    "hash": "1b9931074dd228953f385a6b703f334fe9ecf8fdbbca8b2f7f957f882c28529d",
-    "size": 19492
+  "requirements.txt": {
+    "hash": "35dd98a64d02e14f181104e469c9d35ed0271c084e9b785c9a86c11874b0379e",
+    "size": 682
   }
 }

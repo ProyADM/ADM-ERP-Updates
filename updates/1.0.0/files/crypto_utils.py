@@ -17,17 +17,38 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 # ============================================================
-# CONFIGURACIÓN DE LA CLAVE MAESTRA (AUTOMÁTICA)
+# CONFIGURACIÓN DE LA CLAVE MAESTRA
 # ============================================================
 
 # Archivo donde se guarda la clave maestra (ignorado por git)
 MASTER_KEY_FILE = os.path.join(os.path.dirname(__file__), '.master.key')
 
+# Salt usado SOLO para leer archivos cifrados ANTES del cambio a
+# salt aleatorio por archivo (retrocompatibilidad). NO usar al cifrar.
+SALT_LEGACY = b'sidesys_erp_master_salt_2026'
+
+
+def _generar_salt(tamano: int = 16) -> bytes:
+    """Genera un salt aleatorio para cifrar un archivo nuevo."""
+    return os.urandom(tamano)
+
+
+def _salt_desde_meta(meta):
+    """Obtiene el salt de los metadatos (base64). Si no está, usa legacy."""
+    salt_b64 = meta.get('salt')
+    if salt_b64:
+        try:
+            return base64.urlsafe_b64decode(salt_b64)
+        except Exception:
+            pass
+    return SALT_LEGACY
+
 
 def _generar_y_guardar_clave_maestra():
     """
-    Genera una clave maestra aleatoria y la guarda en el sistema.
-    🔴 Esta función se ejecuta automáticamente si no existe la clave.
+    Genera una clave maestra aleatoria y la guarda.
+    🔴 Esta función SOLO se invoca EXPLÍCITAMENTE por CLI (--generate-key),
+    NUNCA automáticamente en el arranque.
     
     RETURNS: La clave generada
     """
@@ -43,7 +64,7 @@ def _generar_y_guardar_clave_maestra():
             os.chmod(MASTER_KEY_FILE, 0o600)  # Solo lectura/escritura para el propietario
         except:
             pass  # En Windows no funciona chmod, ignorar
-        print(f"🔑 CLAVE MAESTRA GENERADA AUTOMÁTICAMENTE")
+        print(f"🔑 CLAVE MAESTRA GENERADA")
         print(f"   Guardada en: {MASTER_KEY_FILE}")
         print(f"   ⚠️ NO COMPARTAS ESTE ARCHIVO")
         print(f"   ℹ️ Si necesitas la clave, consulta el archivo .master.key")
@@ -68,7 +89,8 @@ def _generar_y_guardar_clave_maestra():
 def obtener_clave_maestra():
     """
     Obtiene la clave maestra desde variable de entorno o archivo.
-    🔴 Si no existe, la genera AUTOMÁTICAMENTE.
+    🔴 NO genera claves automáticamente ni usa fallback: si no existe,
+    lanza un error con instrucciones.
     
     RETURNS: La clave maestra como string
     """
@@ -87,9 +109,12 @@ def obtener_clave_maestra():
         except Exception as e:
             print(f"⚠️ Error al leer .master.key: {e}")
     
-    # 🔴 NO EXISTE CLAVE - GENERAR AUTOMÁTICAMENTE
-    print("⚠️ No se encontró clave maestra. Generando automáticamente...")
-    return _generar_y_guardar_clave_maestra()
+    # No hay clave → error claro (nunca auto-generar en silencio)
+    raise RuntimeError(
+        "❌ No se encontró clave maestra.\n"
+        "   Define SIDESYS_MASTER_KEY en variables de entorno\n"
+        "   O crea un archivo .master.key con la clave de esta instalación."
+    )
 
 
 def obtener_clave_maestra_segura():
@@ -122,10 +147,14 @@ def obtener_clave_maestra_segura():
 
 def derivar_clave_maestra(password: str, salt: bytes = None) -> bytes:
     """
-    Deriva una clave de encriptación a partir de la clave maestra
+    Deriva una clave de encriptación a partir de la clave maestra.
+
+    salt=None conserva el salt fijo SOLO como compatibilidad de lectura
+    con archivos cifrados antes del cambio. Al cifrar archivos nuevos se
+    debe generar y persistir un salt aleatorio por archivo.
     """
     if salt is None:
-        salt = b'sidesys_erp_master_salt_2026'
+        salt = SALT_LEGACY
     
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
@@ -139,13 +168,17 @@ def derivar_clave_maestra(password: str, salt: bytes = None) -> bytes:
 
 def encriptar_archivo(archivo_origen: str, archivo_destino: str, password: str = None):
     """
-    Encripta un archivo usando la clave maestra
+    Encripta un archivo usando la clave maestra.
+
+    Cada archivo usa un salt aleatorio propio, persistido en los
+    metadatos del archivo cifrado (para poder desencriptarlo después).
     """
     if password is None:
         password = obtener_clave_maestra()
     
-    # Derivar clave
-    key = derivar_clave_maestra(password)
+    # Salt aleatorio por archivo (nunca el fijo legacy al cifrar)
+    salt = _generar_salt()
+    key = derivar_clave_maestra(password, salt)
     fernet = Fernet(key)
     
     # Leer archivo
@@ -155,12 +188,13 @@ def encriptar_archivo(archivo_origen: str, archivo_destino: str, password: str =
     # Encriptar
     encrypted = fernet.encrypt(data)
     
-    # Guardar metadatos
+    # Guardar metadatos (incluye el salt usado)
     meta = {
         'encrypted_with': 'SidesysERP-MasterKey',
         'timestamp': datetime.now().isoformat(),
         'algorithm': 'AES-256-Fernet',
-        'version': '1.0'
+        'version': '2.0',
+        'salt': base64.urlsafe_b64encode(salt).decode('ascii')
     }
     
     # Guardar archivo con metadatos
@@ -180,17 +214,16 @@ def encriptar_archivo(archivo_origen: str, archivo_destino: str, password: str =
 def desencriptar_archivo(archivo_origen: str, archivo_destino: str, password: str = None) -> bool:
     """
     Desencripta un archivo usando la clave maestra
+
+    Usa el salt guardado en los metadatos si existe (archivos v2);
+    si no (archivos v1 legacy), usa el salt fijo de compatibilidad.
     RETURNS: True si éxito, False si falla
     """
     try:
         if password is None:
             password = obtener_clave_maestra()
         
-        # Derivar clave
-        key = derivar_clave_maestra(password)
-        fernet = Fernet(key)
-        
-        # Leer archivo
+        # Leer archivo (metadatos + datos)
         with open(archivo_origen, 'rb') as f:
             # Leer metadatos
             meta_len = int.from_bytes(f.read(4), 'big')
@@ -199,6 +232,10 @@ def desencriptar_archivo(archivo_origen: str, archivo_destino: str, password: st
             
             # Leer datos encriptados
             encrypted_data = f.read()
+        
+        # Derivar clave con el salt del archivo (o legacy si es antiguo)
+        key = derivar_clave_maestra(password, _salt_desde_meta(meta))
+        fernet = Fernet(key)
         
         # Desencriptar
         decrypted = fernet.decrypt(encrypted_data)
@@ -310,12 +347,14 @@ AR_PASS=tu_contraseña
 FLASK_DEBUG=False
 
 # ============================================================
-# 🔴 CLAVE MAESTRA - SE GENERA AUTOMÁTICAMENTE
+# 🔴 CLAVE MAESTRA - OBLIGATORIA (NO se genera automáticamente)
 # ============================================================
-# No es necesario definirla manualmente.
-# El sistema generará .master.key automáticamente en el primer arranque.
-# Si quieres definirla manualmente, descomenta esta línea:
-# SIDESYS_MASTER_KEY=MiClaveMaestraSegura2026!
+# Debe ser ÚNICA por instalación/despliegue y guardarse fuera del repo.
+# Opción A - variable de entorno (recomendada):
+#   setx SIDESYS_MASTER_KEY "TuClaveUnicaLargaYSegura"
+# Opción B - archivo .master.key (creado con --generate-key o a mano).
+# Generar una clave aleatoria:
+#   python crypto_utils.py --generate-key
 """
     
     with open('.env.ejemplo', 'w', encoding='utf-8') as f:
@@ -323,7 +362,7 @@ FLASK_DEBUG=False
     
     print("✅ Archivo .env.ejemplo creado")
     print("   📝 Edita este archivo con tus credenciales")
-    print("   🔑 La clave maestra se generará automáticamente")
+    print("   🔑 Define SIDESYS_MASTER_KEY (única por instalación) o crea .master.key")
     print("   🔐 Luego ejecuta: python crypto_utils.py --encrypt .env.ejemplo")
     return '.env.ejemplo'
 
@@ -349,7 +388,8 @@ def mostrar_clave_maestra():
         return key
     else:
         print("\n⚠️ No hay clave maestra configurada.")
-        print("   Ejecuta el sistema para generarla automáticamente.")
+        print("   Defínela con SIDESYS_MASTER_KEY (única por instalación)")
+        print("   o genérala con: python crypto_utils.py --generate-key")
         return None
 
 # ============================================================
@@ -401,26 +441,29 @@ if __name__ == "__main__":
     
     Uso:
     
-    1. Generar archivo .env de ejemplo:
-       python crypto_utils.py --generate
-    
-    2. Encriptar archivo .env (funciona en TODAS las PCs):
-       python crypto_utils.py --encrypt .env.ejemplo
-    
-    3. Desencriptar archivo:
-       python crypto_utils.py --decrypt .env.encrypted
-    
-    4. Ver la clave maestra actual:
-       python crypto_utils.py --show-key
-    
-    5. Generar nueva clave maestra:
+    1. (Recomendado) Definir la clave maestra ÚNICA por instalación:
+       setx SIDESYS_MASTER_KEY "TuClaveUnicaLargaYSegura"
+       O generar y guardar en .master.key:
        python crypto_utils.py --generate-key
     
-    6. Usar contraseña personalizada:
+    2. Generar archivo .env de ejemplo:
+       python crypto_utils.py --generate
+    
+    3. Encriptar archivo .env (con la clave maestra definida):
+       python crypto_utils.py --encrypt .env.ejemplo
+    
+    4. Desencriptar archivo:
+       python crypto_utils.py --decrypt .env.encrypted
+    
+    5. Ver la clave maestra actual:
+       python crypto_utils.py --show-key
+    
+    6. Usar contraseña personalizada (no recomendado en producción):
        python crypto_utils.py --encrypt .env --password "MiClaveSegura"
     
-    ⚠️  Este archivo encriptado funciona en CUALQUIER PC
-    🔑  La clave maestra se genera automáticamente si no existe
-    📁  Se guarda en: .master.key (NO subir a Git)
+    🔑  La clave maestra NO se genera automáticamente: debe definirse
+        por instalación (SIDESYS_MASTER_KEY o .master.key).
+    🔐  Cada archivo cifrado usa un salt aleatorio propio.
+    📁  .master.key NO se sube a Git.
     ============================================================
     """)

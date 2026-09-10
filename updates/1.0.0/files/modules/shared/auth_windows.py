@@ -95,24 +95,29 @@ def verificar_credenciales_windows(username, password):
 
 def verificar_ldap(username, password):
     """
-    Verifica credenciales contra Active Directory
+    Verifica credenciales contra Active Directory.
+    Con timeout de socket corto: si el dominio no está accesible, se cae
+    rápido al fallback local (Win32 / net use) en vez de esperar el default.
     """
     if not _tiene_ldap():
         return False, "LDAP no disponible", None
-    
+
+    import socket as _socket
+    _timeout_prev = _socket.getdefaulttimeout()
     try:
+        _socket.setdefaulttimeout(4)  # segundos para connect/search LDAP
         import ldap3
-        
+
         server = ldap3.Server('domain.sidesys.com', get_info=ldap3.ALL)
         conn = ldap3.Connection(server, user=f'{username}@domain.sidesys.com', password=password)
-        
+
         if conn.bind():
             conn.search(
                 search_base='DC=domain,DC=sidesys,DC=com',
                 search_filter=f'(sAMAccountName={username})',
                 attributes=['displayName', 'mail', 'memberOf']
             )
-            
+
             if conn.entries:
                 user_info = {
                     'username': username,
@@ -122,10 +127,12 @@ def verificar_ldap(username, password):
                     'auth_type': 'ldap'
                 }
                 return True, "Autenticado vía LDAP", user_info
-        
+
         return False, "Usuario no encontrado en LDAP", None
     except Exception as e:
         return False, f"Error LDAP: {str(e)}", None
+    finally:
+        _socket.setdefaulttimeout(_timeout_prev)
 
 
 # ============================================================

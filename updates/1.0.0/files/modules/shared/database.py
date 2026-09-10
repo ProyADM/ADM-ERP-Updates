@@ -7,7 +7,7 @@ import pyodbc
 import sys
 import logging
 from flask import g
-from config import SQL_SERVER, SQL_DATABASE, SQL_USERNAME, SQL_PASSWORD, BASES_DISPONIBLES, BASE_DEFAULT, SOCIEDAD_DEFAULT
+from config import SQL_SERVER, SQL_DATABASE, SQL_USERNAME, SQL_PASSWORD, BASES_DISPONIBLES, BASE_DEFAULT, SOCIEDAD_DEFAULT, SQL_ENCRYPT_ACTIVO
 
 # Configurar logging
 logger = logging.getLogger(__name__)
@@ -55,9 +55,14 @@ def set_contexto_base(base, sociedad=None):
         soc_info = info["sociedades"].get(sociedad, info["sociedades"][SOCIEDAD_DEFAULT])
         g.division = soc_info["division"]
         g.sucursal = soc_info["sucursal"]
+        g.sucursal_emp = soc_info.get("sucursal_emp", soc_info["sucursal"])
     else:
         g.division = info.get("division", 5)
         g.sucursal = info.get("sucursal", 1)
+        # Sucursal empresa opcional (p.ej. RD: impresora 5 / empresa 4). Si no
+        # está definida, coincide con la sucursal de impresión (comportamiento
+        # histórico).
+        g.sucursal_emp = info.get("sucursal_emp", g.sucursal)
     return base
 
 def get_contexto_base():
@@ -126,6 +131,7 @@ def run_sql(query, params=(), fetch=True, server_override=None, database_overrid
             f"UID={username};"
             f"PWD={password};"
             "TrustServerCertificate=yes;"
+            + ("Encrypt=yes;" if SQL_ENCRYPT_ACTIVO else "")
         )
         
         conn = None
@@ -142,6 +148,17 @@ def run_sql(query, params=(), fetch=True, server_override=None, database_overrid
             
             if fetch:
                 try:
+                    # Los lotes multi-sentencia (p.ej. ajuste/transferencia: DML +
+                    # BEGIN/COMMIT + SELECT final) dejan cursor.description en None
+                    # porque pyodbc expone solo el PRIMER result set. Avanzar con
+                    # nextset() hasta el primer set real; si nunca hay, la consulta
+                    # no devuelve resultados (INSERT/UPDATE puro → []).
+                    while cursor.description is None:
+                        if not cursor.nextset():
+                            break
+                    if cursor.description is None:
+                        conn.commit()
+                        return []
                     columns = [column[0] for column in cursor.description]
                     results = [dict(zip(columns, row)) for row in cursor.fetchall()]
                     conn.commit()
@@ -155,20 +172,21 @@ def run_sql(query, params=(), fetch=True, server_override=None, database_overrid
                 return None
                 
         except pyodbc.OperationalError as e:
+            # El detalle pyodbc (incluye SQL/estructura) SOLO al log del servidor.
             logger.error(f"[SQL ERROR de conexión] {database}: {e}")
-            raise RuntimeError(f"Error de conexión a la base de datos: {str(e)}")
+            raise RuntimeError("Error de conexión a la base de datos")
         except pyodbc.IntegrityError as e:
             logger.error(f"[SQL ERROR de integridad] {database}: {e}")
-            raise RuntimeError(f"Error de integridad de datos: {str(e)}")
+            raise RuntimeError("Error de integridad de datos")
         except pyodbc.ProgrammingError as e:
             logger.error(f"[SQL ERROR de sintaxis] {database}: {e}")
-            raise RuntimeError(f"Error en la consulta SQL: {str(e)}")
+            raise RuntimeError("Error en la consulta SQL")
         except pyodbc.Error as e:
             logger.error(f"[SQL ERROR] {database}: {e}")
-            raise RuntimeError(f"Error ejecutando SQL: {str(e)}")
+            raise RuntimeError("Error ejecutando SQL")
         except Exception as e:
             logger.error(f"[SQL ERROR inesperado] {database}: {e}")
-            raise RuntimeError(f"Error inesperado: {str(e)}")
+            raise RuntimeError("Error inesperado en la base de datos")
         finally:
             if conn:
                 try:
@@ -177,18 +195,18 @@ def run_sql(query, params=(), fetch=True, server_override=None, database_overrid
                     pass
                     
     except RuntimeError:
-        # Re-lanzar errores ya formateados
+        # Re-lanzar errores ya formateados (sin detalles internos)
         raise
     except Exception as e:
         logger.error(f"[SQL ERROR crítico] {e}")
-        raise RuntimeError(f"Error crítico: {str(e)}")
+        raise RuntimeError("Error crítico en la base de datos")
 
 def run_sql_db(database, query, params=(), fetch=True, server=None, username=None, password=None, timeout=30):
     """
     Ejecuta una consulta SQL en una base de datos específica
     
     Args:
-        database: Nombre de la base de datos
+        database: Nombre de la base de datos (DEBE estar en BASES_DISPONIBLES)
         query: Consulta SQL con placeholders '?'
         params: Tupla de parámetros
         fetch: Si debe devolver resultados
@@ -199,7 +217,17 @@ def run_sql_db(database, query, params=(), fetch=True, server=None, username=Non
     
     Returns:
         Lista de diccionarios si fetch=True, None si fetch=False
+
+    Raises:
+        RuntimeError: Si la base no está en la whitelist o hay error
     """
+    # 🔴 Validar base contra la whitelist (evita SSRF / inyección en
+    # connection string por el parámetro `base` del request/Excel).
+    if database not in BASES_DISPONIBLES:
+        raise RuntimeError(
+            f"Base de datos no permitida: '{database}'. "
+            f"Bases válidas: {', '.join(BASES_DISPONIBLES.keys())}"
+        )
     return run_sql(
         query, 
         params=params,

@@ -3,18 +3,6 @@
 // ============================================================
 
 // Función de sanitización
-function escapeHTML(str) {
-    if (!str) return '';
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return String(str).replace(/[&<>"']/g, function(m) { return map[m]; });
-}
-
 function getPaisesDisponibles() {
     return [
         { id: 'GT', label: 'Guatemala', base: 'plataforma_gt' },
@@ -142,7 +130,7 @@ function generarResumenMensual(data) {
     let html = `
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
             <span style="font-weight:500;font-size:13px;color:#475569;">📅 Año:</span>
-            <select id="selectorAnio" onchange="cambiarAnioCotizaciones()" style="padding:4px 12px;border:1px solid #d1d5db;border-radius:4px;font-size:13px;background:white;cursor:pointer;">
+            <select id="selectorAnio" data-onchange="cambiarAnioCotizaciones()" style="padding:4px 12px;border:1px solid #d1d5db;border-radius:4px;font-size:13px;background:white;cursor:pointer;">
     `;
     
     añosDisponibles.forEach(a => {
@@ -246,31 +234,167 @@ async function guardarCotizacion() {
     }
 }
 
+// Estado de la importación pendiente de confirmar (preview → importar)
+let _importPendiente = null;
+
 async function importarExcelCoti() {
     const file = document.getElementById('cotiExcel').files[0];
     if (!file) return mostrarMsg('Seleccioná un archivo Excel.', false);
     
-    const seleccionados = getPaisesSeleccionados();
-    if (!seleccionados.length) return mostrarMsg('Seleccioná al menos un país.', false);
+    // Limpiar resultado anterior y ocultar el área de preview.
+    const prevResult = document.getElementById('cotiPreview');
+    if (prevResult) { prevResult.innerHTML = ''; prevResult.style.display = 'none'; }
     
+    // La selección de países es opcional si la planilla trae la columna "País".
+    const seleccionados = getPaisesSeleccionados();
     const bases = seleccionados.map(p => p.id);
+    
     const b64 = await toBase64(file);
-    const res = await fetch('/api/cotizaciones/importar_excel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file_b64: b64, bases })
-    }).then(r => r.json());
-
-    if (res.ok) {
-        const basesStr = bases.join(', ');
-        mostrarMsg(`✅ ${res.insertados} cotización(es) importadas para ${escapeHTML(basesStr)}.`, true);
-        cargarHistoricoCoti();
-        document.getElementById('cotiExcel').value = '';
-        document.getElementById('cotiPreview').style.display = 'none';
-    } else {
-        const errores = res.errores?.join(' | ') || res.error || 'Error al importar';
-        mostrarMsg(escapeHTML(errores), false);
+    
+    // 1) PREVIEW (dry_run): no escribe nada; muestra qué se va a importar.
+    let res;
+    try {
+        res = await fetch('/api/cotizaciones/importar_excel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ file_b64: b64, bases, dry_run: true })
+        }).then(r => r.json());
+    } catch (e) {
+        return mostrarMsg('Error al previsualizar: ' + e.message, false);
     }
+    
+    if (!res.ok || res.error) {
+        return mostrarMsg(res.error || 'No se pudo previsualizar el archivo.', false);
+    }
+    if (!res.filas_validas || res.filas_validas <= 0) {
+        return mostrarMsg('El archivo no tiene filas válidas para importar.', false);
+    }
+    
+    _importPendiente = { b64, bases };
+    mostrarModalConfirmacion(res);
+}
+
+function mostrarModalConfirmacion(res) {
+    cerrarModalImport();
+    
+    const porPais = res.por_pais || {};
+    const paisesHtml = Object.keys(porPais).length
+        ? Object.entries(porPais).map(([sigla, n]) => `<b>${escapeHTML(sigla)}</b>: ${n}`).join(' · ')
+        : '—';
+    
+    let erroresHtml = '';
+    if (res.errores && res.errores.length) {
+        const primeras = res.errores.slice(0, 5).map(e => escapeHTML(e)).join('<br>');
+        erroresHtml = `
+            <div style="margin-bottom:12px;padding:8px 10px;background:#fef3f2;border:1px solid #fecdc9;border-radius:6px;font-size:12px;color:#b42318;">
+                ⚠️ ${res.errores.length} fila(s) ignorada(s) (no se importarán):<br>${primeras}${res.errores.length > 5 ? '<br>…' : ''}
+            </div>`;
+    }
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'modal-confirmar-import-coti';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:20000;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `
+        <div style="background:#fff;border-radius:12px;padding:22px 24px;max-width:520px;width:95%;box-shadow:0 12px 40px rgba(0,0,0,.25);font-size:13px;color:#1e293b;max-height:90vh;overflow-y:auto;">
+            <h3 style="margin:0 0 12px;font-size:16px;">⚠️ ¿Importar cotizaciones?</h3>
+            <div style="margin-bottom:10px;">Se van a importar <b>${res.filas_validas}</b> fila(s). Desglose por país destino:</div>
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-weight:600;line-height:1.7;">${paisesHtml}</div>
+            ${erroresHtml}
+            <div style="font-size:12px;color:#64748b;margin-bottom:16px;">Revisá que los países destinos sean los correctos antes de confirmar.</div>
+            <div style="display:flex;justify-content:flex-end;gap:8px;">
+                <button data-onclick="cancelarImportarCoti()" style="padding:7px 16px;border-radius:6px;border:1px solid #cbd5e1;background:white;color:#334155;cursor:pointer;font-weight:600;">Cancelar</button>
+                <button data-onclick="confirmarImportarCoti()" style="padding:7px 16px;border-radius:6px;border:none;background:#2563eb;color:white;cursor:pointer;font-weight:600;">Sí, importar</button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+}
+
+function cerrarModalImport() {
+    const overlay = document.getElementById('modal-confirmar-import-coti');
+    if (overlay) overlay.remove();
+}
+
+window.confirmarImportarCoti = async function() {
+    if (!_importPendiente) return;
+    const { b64, bases } = _importPendiente;
+    cerrarModalImport();
+    mostrarSpinnerImport('⏳ Importando cotizaciones… no cierres la ventana.');
+    try {
+        const res = await fetch('/api/cotizaciones/importar_excel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ file_b64: b64, bases })
+        }).then(r => r.json());
+        
+        cargarHistoricoCoti();
+        const inputFile = document.getElementById('cotiExcel');
+        if (inputFile) inputFile.value = '';
+        
+        mostrarResultadoImport(res);
+    } catch (e) {
+        mostrarMsg('Error al importar: ' + e.message, false);
+    } finally {
+        ocultarSpinnerImport();
+        _importPendiente = null;
+    }
+};
+
+// Muestra el resultado final de la importación bajo el botón "Importar"
+// (#cotiPreview), con estilo persistente hasta la próxima importación.
+function mostrarResultadoImport(res) {
+    const prev = document.getElementById('cotiPreview');
+    if (!prev) return;
+    
+    const nIgnoradas = (res.errores && res.errores.length) ? res.errores.length : 0;
+    let inner = '';
+    
+    if (res.insertados > 0) {
+        inner = `<div style="padding:10px 14px;border-radius:8px;background:#f0fdf4;border:1px solid #86efac;color:#166534;font-size:13px;font-weight:600;">
+            ✅ Se importaron ${res.insertados} cotización(es).</div>`;
+        if (nIgnoradas > 0) {
+            const primeras = res.errores.slice(0, 3).map(e => escapeHTML(e)).join('<br>');
+            inner += `<div style="margin-top:6px;padding:8px 12px;border-radius:8px;background:#fef3f2;border:1px solid #fecdc9;color:#b42318;font-size:12px;">
+                ⚠️ ${nIgnoradas} fila(s) ignorada(s):<br>${primeras}${nIgnoradas > 3 ? '<br>…' : ''}</div>`;
+        }
+    } else if (nIgnoradas) {
+        const primeras = res.errores.slice(0, 3).map(e => escapeHTML(e)).join('<br>');
+        inner = `<div style="padding:10px 14px;border-radius:8px;background:#fef3f2;border:1px solid #fecdc9;color:#b42318;font-size:13px;">
+            ❌ No se importó nada. ${nIgnoradas} fila(s) inválida(s):<br>${primeras}${nIgnoradas > 3 ? '<br>…' : ''}</div>`;
+    } else {
+        inner = `<div style="padding:10px 14px;border-radius:8px;background:#fef3f2;border:1px solid #fecdc9;color:#b42318;font-size:13px;">
+            ❌ ${escapeHTML(res.error || 'Error al importar')}</div>`;
+    }
+    
+    prev.innerHTML = inner;
+    prev.style.display = 'block';
+    prev.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+window.cancelarImportarCoti = function() {
+    cerrarModalImport();
+    _importPendiente = null;
+};
+
+function mostrarSpinnerImport(mensaje) {
+    ocultarSpinnerImport();
+    const overlay = document.createElement('div');
+    overlay.id = 'coti-import-spinner';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:21000;background:rgba(15,23,42,.6);display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;font-size:15px;font-weight:600;gap:14px;';
+    const style = document.createElement('style');
+    style.textContent = '@keyframes cotiSpin { to { transform: rotate(360deg); } }';
+    const anim = document.createElement('div');
+    anim.style.cssText = 'width:34px;height:34px;border:4px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:cotiSpin 0.9s linear infinite;';
+    const texto = document.createElement('span');
+    texto.textContent = mensaje || '⏳ Importando cotizaciones…';
+    overlay.appendChild(style);
+    overlay.appendChild(anim);
+    overlay.appendChild(texto);
+    document.body.appendChild(overlay);
+}
+
+function ocultarSpinnerImport() {
+    const overlay = document.getElementById('coti-import-spinner');
+    if (overlay) overlay.remove();
 }
 
 function toBase64(file) {
@@ -299,6 +423,5 @@ window.getPaisesSeleccionados = getPaisesSeleccionados;
 window.cambiarAnioCotizaciones = cambiarAnioCotizaciones;
 window.toBase64 = toBase64;
 window.mostrarMsg = mostrarMsg;
-window.escapeHTML = escapeHTML;
 
 console.log('✅ Cotizaciones.js actualizado - XSS sanitizado');

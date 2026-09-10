@@ -12,12 +12,23 @@ import sys
 import os
 import io
 import logging
+import datetime
+from decimal import Decimal, InvalidOperation
 from modules.shared.database import run_sql, run_sql_db, _sql_literal, set_contexto_base
 from config import BASES_DISPONIBLES, CATEGORIAS_ARTICULO, CUENTAS_POR_ORIGEN, _UY_COLS, _BASES_CONSOLIDADO, SQL_SERVER, SQL_USERNAME, SQL_PASSWORD
+from modules.shared.decorators import requiere_permiso, chequear_acceso_base
+from modules.shared.permisos import PermisosSistema
 
 logger = logging.getLogger(__name__)
 
 stock_bp = Blueprint('stock', __name__, url_prefix='/api')
+
+def _error_response(e, mensaje="Ocurrió un error en el servidor", codigo=500):
+    """Devuelve un error genérico al cliente y loguea el detalle en el servidor.
+    Nunca expone stack traces ni mensajes SQL/pyodbc al cliente."""
+    import traceback
+    logger.error(f"{mensaje}: {e}\n{traceback.format_exc()}")
+    return jsonify({"error": mensaje}), codigo
 
 # ============================================================
 # VALIDACIÓN DE VARIABLES DE ENTORNO (NUEVO)
@@ -81,6 +92,7 @@ def _obtener_proximo_movimiento_id():
 # ============================================================
 
 @stock_bp.route('/articulos', methods=["GET"])
+@requiere_permiso(PermisosSistema.STOCK_VER)
 def listar_articulos():
     try:
         rows = run_sql("""
@@ -100,24 +112,20 @@ def listar_articulos():
         } for r in rows]
         return jsonify(out)
     except Exception as e:
-        import traceback
-        print(f"❌ Error en /api/articulos: {str(e)}")
-        print(traceback.format_exc())
-        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+        return _error_response(e, "Error al listar artículos")
 
 @stock_bp.route('/depositos', methods=["GET"])
+@requiere_permiso(PermisosSistema.STOCK_VER)
 def listar_depositos():
     try:
         rows = run_sql("SELECT DPOS_DEPOSITO, DPOS_NOMBRE FROM STOC_DPOS WHERE DPOS_UTILIZABLE = 1 ORDER BY DPOS_NOMBRE")
         out = [{"id": r["DPOS_DEPOSITO"], "nombre": r["DPOS_NOMBRE"]} for r in rows]
         return jsonify(out)
     except Exception as e:
-        import traceback
-        print(f"❌ Error en /api/depositos: {str(e)}")
-        print(traceback.format_exc())
-        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+        return _error_response(e, "Error al listar depósitos")
 
 @stock_bp.route('/categorias', methods=["GET"])
+@requiere_permiso(PermisosSistema.STOCK_VER)
 def listar_categorias():
     try:
         from config import CATEGORIAS_ARTICULO
@@ -125,12 +133,10 @@ def listar_categorias():
                for cod, info in CATEGORIAS_ARTICULO.items()]
         return jsonify(out)
     except Exception as e:
-        import traceback
-        print(f"❌ Error en /api/categorias: {str(e)}")
-        print(traceback.format_exc())
-        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+        return _error_response(e, "Error al listar categorías")
 
 @stock_bp.route('/partidas', methods=["GET"])
+@requiere_permiso(PermisosSistema.STOCK_VER)
 def listar_partidas():
     articulo = request.args.get("articulo", type=int)
     deposito = request.args.get("deposito", type=int)
@@ -145,6 +151,7 @@ def listar_partidas():
     return jsonify(out)
 
 @stock_bp.route('/stock', methods=["GET"])
+@requiere_permiso(PermisosSistema.STOCK_VER)
 def consultar_stock():
     try:
         where = [
@@ -196,11 +203,74 @@ def consultar_stock():
         return jsonify({"error": str(e)}), 500
 
 # ============================================================
+# VALIDACION DE ENTRADA DE MOVIMIENTOS (anti-inyeccion SQL)
+# ============================================================
+
+class ErrorValidacion(Exception):
+    """Error controlado de validacion de entrada (se devuelve como HTTP 400)."""
+    pass
+
+
+def _validar_entero(valor, campo):
+    """Convierte un valor de entrada a int o lanza ErrorValidacion."""
+    if valor is None or valor == '':
+        raise ErrorValidacion("El campo '" + campo + "' es obligatorio")
+    try:
+        return int(valor)
+    except (TypeError, ValueError):
+        raise ErrorValidacion("El campo '" + campo + "' debe ser un numero entero")
+
+
+def _validar_decimal(valor, campo):
+    """Convierte un valor de entrada a Decimal finito o lanza ErrorValidacion."""
+    if valor is None or valor == '':
+        raise ErrorValidacion("El campo '" + campo + "' es obligatorio")
+    try:
+        d = Decimal(str(valor))
+    except (InvalidOperation, TypeError, ValueError):
+        raise ErrorValidacion("El campo '" + campo + "' debe ser un numero")
+    if not d.is_finite():
+        raise ErrorValidacion("El campo '" + campo + "' debe ser un numero finito")
+    if abs(d) > Decimal('1e15'):
+        raise ErrorValidacion("El campo '" + campo + "' excede el rango permitido")
+    return d
+
+
+def _validar_fecha(fecha, campo='fecha'):
+    """Valida una fecha en formato AAAA-MM-DD (devuelve None si viene vacia)."""
+    if fecha is None or str(fecha).strip() == '':
+        return None
+    try:
+        return datetime.date.fromisoformat(str(fecha).strip()).isoformat()
+    except (TypeError, ValueError):
+        raise ErrorValidacion("El campo '" + campo + "' debe tener formato AAAA-MM-DD")
+
+
+def _validar_signo(signo):
+    """Valida el signo de un movimiento: 'E' (entrada) o 'S' (salida)."""
+    s = str(signo or '').strip().upper()
+    if s not in ('E', 'S'):
+        raise ErrorValidacion("El campo 'signo' debe ser 'E' (entrada) o 'S' (salida)")
+    return s
+
+
+# ============================================================
 # RUTAS STOCK - AJUSTES
 # ============================================================
 
 def _hacer_ajuste(articulo, deposito, cantidad, signo, partida=None, fecha=None, partida_nombre=None, comentario=None):
-    division, sucursal_imp, sucursal_emp = g.division, g.sucursal, g.sucursal
+    # ===== SANITIZACION DE ENTRADA (anti-inyeccion) =====
+    articulo = _validar_entero(articulo, 'articulo')
+    deposito = _validar_entero(deposito, 'deposito')
+    cantidad = _validar_decimal(cantidad, 'cantidad')
+    cantidad_sql = format(cantidad, 'f')
+    signo = _validar_signo(signo)
+    partida = _validar_entero(partida, 'partida') if partida not in (None, '') else None
+    fecha = _validar_fecha(fecha, 'fecha')
+
+    division = g.division
+    sucursal_imp = g.sucursal
+    sucursal_emp = getattr(g, 'sucursal_emp', sucursal_imp)
     tipo_com = "AJ+" if signo == "E" else "AJ-"
     fecha_sql = f"'{fecha}'" if fecha else "CAST(GETDATE() AS DATE)"
 
@@ -221,6 +291,25 @@ def _hacer_ajuste(articulo, deposito, cantidad, signo, partida=None, fecha=None,
             return {"error": "Stock insuficiente en esa partida"}
 
     crea_partidas = 1 if (signo == "E" and con_partidas) else 0
+
+    # Entrada con partidas y NOMBRE dado: si ya existe una partida con ese nombre
+    # (PART_AK1 = artículo + nombre único):
+    #  - con stock → error claro (no se puede repetir el serial "vivo");
+    #  - sin stock (huérfana de un movimiento borrado) → se reutiliza esa partida.
+    partida_reutilizar = None
+    if signo == "E" and con_partidas and partida_nombre:
+        fila_part = run_sql("""
+            SELECT p.PART_PARTIDA AS partida,
+                   ISNULL((SELECT SUM(SDPP_STOCK_ACT) FROM STOC_SDPP s
+                           WHERE s.SDPP_PARTIDA = p.PART_PARTIDA
+                             AND s.SDPP_ARTICULO = p.PART_ARTICULO), 0) AS stock
+            FROM STOC_PART p
+            WHERE p.PART_ARTICULO = ? AND p.PART_PARTIDA_EMP = ?
+        """, params=[articulo, partida_nombre])
+        if fila_part:
+            if float(fila_part[0]["stock"]) > 0:
+                return {"error": f"La partida '{partida_nombre}' ya existe para este artículo y no se puede repetir (tiene stock)."}
+            partida_reutilizar = int(fila_part[0]["partida"])
 
     mov_id = _obtener_proximo_movimiento_id()
     
@@ -245,36 +334,49 @@ def _hacer_ajuste(articulo, deposito, cantidad, signo, partida=None, fecha=None,
             MOSD_DEPOSITO, MOSD_ARTICULO, MOSD_SIGNO, MOSD_MOD_STOCK, MOSD_CANT_ING, MOSD_UNIMED,
             MOSD_CANT_UNISTO, MOSD_FACTOR_UMS, MOSD_TIENE_PEDIDOS, MOSD_CREA_PARTIDAS, MOSD_TIENE_OC,
             MOSD_TIENE_REG_PPP, MOSD_TIENE_PPP_PAR)
-        VALUES (@mov, 1, 1, 1, {deposito}, {articulo}, '{signo}', 1, {cantidad}, 'UN', {cantidad}, 1,
+        VALUES (@mov, 1, 1, 1, {deposito}, {articulo}, '{signo}', 1, {cantidad_sql}, 'UN', {cantidad_sql}, 1,
             0, {crea_partidas}, 0, 0, 0);
     """)
 
     if signo == "E":
         if con_partidas:
-            sql_parts.append("DECLARE @part INT = (SELECT ISNULL(MAX(PART_PARTIDA),0)+1 FROM STOC_PART WITH (UPDLOCK, TABLOCKX));")
-            sql_parts.append(f"""
-                INSERT INTO STOC_PART (PART_PARTIDA, PART_PARTIDA_EMP, PART_ARTICULO, PART_FECHA_ALTA,
-                    PART_CANT_INI, PART_COSTO_GES_1, PART_COSTO_GES_2, PART_COSTO_GES_3, PART_COSTO_GES_4)
-                VALUES (@part, {_sql_literal(partida_nombre) if partida_nombre else 'CAST(@part AS VARCHAR)'}, {articulo}, CAST(GETDATE() AS DATE), {cantidad}, 0, 0, 0, 0);
-            """)
-            sql_parts.append(f"""
-                INSERT INTO STOC_SDPP (SDPP_DEPOSITO, SDPP_PARTIDA, SDPP_ARTICULO, SDPP_STOCK_ACT, SDPP_STRES_PED)
-                VALUES ({deposito}, @part, {articulo}, {cantidad}, 0);
-            """)
+            if partida_reutilizar is not None:
+                # La partida quedó huérfana (su movimiento se borró): reutilizarla
+                # en vez de intentar crearla de nuevo (evita duplicado PART_AK1).
+                sql_parts.append(f"DECLARE @part INT = {partida_reutilizar};")
+                sql_parts.append(f"""
+                    IF EXISTS (SELECT 1 FROM STOC_SDPP WHERE SDPP_DEPOSITO={deposito} AND SDPP_PARTIDA=@part AND SDPP_ARTICULO={articulo})
+                        UPDATE STOC_SDPP SET SDPP_STOCK_ACT = SDPP_STOCK_ACT + {cantidad_sql}
+                        WHERE SDPP_DEPOSITO={deposito} AND SDPP_PARTIDA=@part AND SDPP_ARTICULO={articulo};
+                    ELSE
+                        INSERT INTO STOC_SDPP (SDPP_DEPOSITO, SDPP_PARTIDA, SDPP_ARTICULO, SDPP_STOCK_ACT, SDPP_STRES_PED)
+                        VALUES ({deposito}, @part, {articulo}, {cantidad_sql}, 0);
+                """)
+            else:
+                sql_parts.append("DECLARE @part INT = (SELECT ISNULL(MAX(PART_PARTIDA),0)+1 FROM STOC_PART WITH (UPDLOCK, TABLOCKX));")
+                sql_parts.append(f"""
+                    INSERT INTO STOC_PART (PART_PARTIDA, PART_PARTIDA_EMP, PART_ARTICULO, PART_FECHA_ALTA,
+                        PART_CANT_INI, PART_COSTO_GES_1, PART_COSTO_GES_2, PART_COSTO_GES_3, PART_COSTO_GES_4)
+                    VALUES (@part, {_sql_literal(partida_nombre) if partida_nombre else 'CAST(@part AS VARCHAR)'}, {articulo}, CAST(GETDATE() AS DATE), {cantidad_sql}, 0, 0, 0, 0);
+                """)
+                sql_parts.append(f"""
+                    INSERT INTO STOC_SDPP (SDPP_DEPOSITO, SDPP_PARTIDA, SDPP_ARTICULO, SDPP_STOCK_ACT, SDPP_STRES_PED)
+                    VALUES ({deposito}, @part, {articulo}, {cantidad_sql}, 0);
+                """)
         sql_parts.append(f"""
             IF EXISTS (SELECT 1 FROM STOC_STDP WHERE STDP_DEPOSITO={deposito} AND STDP_ARTICULO={articulo})
-                UPDATE STOC_STDP SET STDP_STOCK_ACT = STDP_STOCK_ACT + {cantidad}
+                UPDATE STOC_STDP SET STDP_STOCK_ACT = STDP_STOCK_ACT + {cantidad_sql}
                 WHERE STDP_DEPOSITO={deposito} AND STDP_ARTICULO={articulo};
             ELSE
                 INSERT INTO STOC_STDP (STDP_DEPOSITO, STDP_ARTICULO, STDP_STOCK_ACT, STDP_STEGR_PED,
                     STDP_STEGR_FAB, STDP_STING_COM, STDP_STING_FAB, STDP_STRES_PED)
-                VALUES ({deposito}, {articulo}, {cantidad}, 0, 0, 0, 0, 0);
+                VALUES ({deposito}, {articulo}, {cantidad_sql}, 0, 0, 0, 0, 0);
         """)
     else:
         if con_partidas:
             sql_parts.append(f"""
                 DECLARE @restante DECIMAL(18,4) = (SELECT SDPP_STOCK_ACT FROM STOC_SDPP
-                    WHERE SDPP_DEPOSITO={deposito} AND SDPP_PARTIDA={partida} AND SDPP_ARTICULO={articulo}) - {cantidad};
+                    WHERE SDPP_DEPOSITO={deposito} AND SDPP_PARTIDA={partida} AND SDPP_ARTICULO={articulo}) - {cantidad_sql};
             """)
             sql_parts.append(f"""
                 IF @restante <= 0
@@ -284,7 +386,7 @@ def _hacer_ajuste(articulo, deposito, cantidad, signo, partida=None, fecha=None,
                     WHERE SDPP_DEPOSITO={deposito} AND SDPP_PARTIDA={partida} AND SDPP_ARTICULO={articulo};
             """)
         sql_parts.append(f"""
-            UPDATE STOC_STDP SET STDP_STOCK_ACT = STDP_STOCK_ACT - {cantidad}
+            UPDATE STOC_STDP SET STDP_STOCK_ACT = STDP_STOCK_ACT - {cantidad_sql}
             WHERE STDP_DEPOSITO={deposito} AND STDP_ARTICULO={articulo};
         """)
 
@@ -313,24 +415,46 @@ def _hacer_ajuste(articulo, deposito, cantidad, signo, partida=None, fecha=None,
     return {"ok": True, "movimiento": movimiento, "numero_comprobante": numero, "tipo": tipo_com}
 
 @stock_bp.route('/ajuste', methods=["POST"])
+@requiere_permiso(PermisosSistema.STOCK_AJUSTAR)
 def ajuste():
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "El cuerpo debe ser un objeto JSON"}), 400
     try:
         resultado = _hacer_ajuste(
-            data["articulo"], data["deposito"], data["cantidad"], data["signo"],
+            data.get("articulo"), data.get("deposito"), data.get("cantidad"), data.get("signo"),
             data.get("partida"), data.get("fecha"), data.get("partida_nombre"), data.get("comentario")
         )
         if "error" in resultado:
             return jsonify(resultado), 400
         return jsonify(resultado)
+    except ErrorValidacion as e:
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 def _hacer_ajuste_lote(signo, filas):
+    # ===== SANITIZACION DE ENTRADA (anti-inyeccion) =====
+    signo = _validar_signo(signo)
     if not filas:
         return {"error": "No hay filas para cargar"}
 
-    division, sucursal_imp, sucursal_emp = g.division, g.sucursal, g.sucursal
+    filas_ok = []
+    for f in filas:
+        if not isinstance(f, dict):
+            raise ErrorValidacion("Cada fila debe ser un objeto con articulo, deposito y cantidad")
+        partida_f = f.get("partida")
+        filas_ok.append({
+            "articulo": _validar_entero(f.get("articulo"), "articulo"),
+            "deposito": _validar_entero(f.get("deposito"), "deposito"),
+            "cantidad": _validar_decimal(f.get("cantidad"), "cantidad"),
+            "partida": _validar_entero(partida_f, "partida") if partida_f not in (None, "") else None,
+        })
+    filas = filas_ok
+
+    division = g.division
+    sucursal_imp = g.sucursal
+    sucursal_emp = getattr(g, 'sucursal_emp', sucursal_imp)
     tipo_com = "AJ+" if signo == "E" else "AJ-"
 
     info_articulos = {}
@@ -376,6 +500,7 @@ def _hacer_ajuste_lote(signo, filas):
         art = fila["articulo"]
         deposito = fila["deposito"]
         cantidad = fila["cantidad"]
+        cantidad_sql = format(cantidad, 'f')
         partida = fila.get("partida")
         con_partidas = info_articulos[art]
         crea_partidas = 1 if (signo == "E" and con_partidas) else 0
@@ -385,7 +510,7 @@ def _hacer_ajuste_lote(signo, filas):
                 MOSD_DEPOSITO, MOSD_ARTICULO, MOSD_SIGNO, MOSD_MOD_STOCK, MOSD_CANT_ING, MOSD_UNIMED,
                 MOSD_CANT_UNISTO, MOSD_FACTOR_UMS, MOSD_TIENE_PEDIDOS, MOSD_CREA_PARTIDAS, MOSD_TIENE_OC,
                 MOSD_TIENE_REG_PPP, MOSD_TIENE_PPP_PAR)
-            VALUES (@mov, {idx}, 1, 1, {deposito}, {art}, '{signo}', 1, {cantidad}, 'UN', {cantidad}, 1,
+            VALUES (@mov, {idx}, 1, 1, {deposito}, {art}, '{signo}', 1, {cantidad_sql}, 'UN', {cantidad_sql}, 1,
                 0, {crea_partidas}, 0, 0, 0);
         """)
 
@@ -397,26 +522,26 @@ def _hacer_ajuste_lote(signo, filas):
                 sql_parts.append(f"""
                     INSERT INTO STOC_PART (PART_PARTIDA, PART_PARTIDA_EMP, PART_ARTICULO, PART_FECHA_ALTA,
                         PART_CANT_INI, PART_COSTO_GES_1, PART_COSTO_GES_2, PART_COSTO_GES_3, PART_COSTO_GES_4)
-                    VALUES (@part{idx}, CAST(@part{idx} AS VARCHAR), {art}, CAST(GETDATE() AS DATE), {cantidad}, 0, 0, 0, 0);
+                    VALUES (@part{idx}, CAST(@part{idx} AS VARCHAR), {art}, CAST(GETDATE() AS DATE), {cantidad_sql}, 0, 0, 0, 0);
                 """)
                 sql_parts.append(f"""
                     INSERT INTO STOC_SDPP (SDPP_DEPOSITO, SDPP_PARTIDA, SDPP_ARTICULO, SDPP_STOCK_ACT, SDPP_STRES_PED)
-                    VALUES ({deposito}, @part{idx}, {art}, {cantidad}, 0);
+                    VALUES ({deposito}, @part{idx}, {art}, {cantidad_sql}, 0);
                 """)
             sql_parts.append(f"""
                 IF EXISTS (SELECT 1 FROM STOC_STDP WHERE STDP_DEPOSITO={deposito} AND STDP_ARTICULO={art})
-                    UPDATE STOC_STDP SET STDP_STOCK_ACT = STDP_STOCK_ACT + {cantidad}
+                    UPDATE STOC_STDP SET STDP_STOCK_ACT = STDP_STOCK_ACT + {cantidad_sql}
                     WHERE STDP_DEPOSITO={deposito} AND STDP_ARTICULO={art};
                 ELSE
                     INSERT INTO STOC_STDP (STDP_DEPOSITO, STDP_ARTICULO, STDP_STOCK_ACT, STDP_STEGR_PED,
                         STDP_STEGR_FAB, STDP_STING_COM, STDP_STING_FAB, STDP_STRES_PED)
-                    VALUES ({deposito}, {art}, {cantidad}, 0, 0, 0, 0, 0);
+                    VALUES ({deposito}, {art}, {cantidad_sql}, 0, 0, 0, 0, 0);
             """)
         else:
             if con_partidas:
                 sql_parts.append(f"""
                     DECLARE @restante{idx} DECIMAL(18,4) = (SELECT SDPP_STOCK_ACT FROM STOC_SDPP
-                        WHERE SDPP_DEPOSITO={deposito} AND SDPP_PARTIDA={partida} AND SDPP_ARTICULO={art}) - {cantidad};
+                        WHERE SDPP_DEPOSITO={deposito} AND SDPP_PARTIDA={partida} AND SDPP_ARTICULO={art}) - {cantidad_sql};
                 """)
                 sql_parts.append(f"""
                     IF @restante{idx} <= 0
@@ -426,7 +551,7 @@ def _hacer_ajuste_lote(signo, filas):
                         WHERE SDPP_DEPOSITO={deposito} AND SDPP_PARTIDA={partida} AND SDPP_ARTICULO={art};
                 """)
             sql_parts.append(f"""
-                UPDATE STOC_STDP SET STDP_STOCK_ACT = STDP_STOCK_ACT - {cantidad}
+                UPDATE STOC_STDP SET STDP_STOCK_ACT = STDP_STOCK_ACT - {cantidad_sql}
                 WHERE STDP_DEPOSITO={deposito} AND STDP_ARTICULO={art};
             """)
 
@@ -455,13 +580,18 @@ def _hacer_ajuste_lote(signo, filas):
     return {"ok": True, "movimiento": movimiento, "numero_comprobante": numero, "tipo": tipo_com, "cantidad_renglones": len(filas)}
 
 @stock_bp.route('/ajuste/lote', methods=["POST"])
+@requiere_permiso(PermisosSistema.STOCK_AJUSTAR)
 def ajuste_lote():
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "El cuerpo debe ser un objeto JSON"}), 400
     try:
-        resultado = _hacer_ajuste_lote(data["signo"], data.get("filas", []))
+        resultado = _hacer_ajuste_lote(data.get("signo"), data.get("filas", []))
         if "error" in resultado:
             return jsonify(resultado), 400
         return jsonify(resultado)
+    except ErrorValidacion as e:
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -470,7 +600,18 @@ def ajuste_lote():
 # ============================================================
 
 def _hacer_transferencia(articulo, dep_origen, dep_destino, cantidad, partida=None, fecha=None, comentario=None):
-    division, sucursal_imp, sucursal_emp = g.division, g.sucursal, g.sucursal
+    # ===== SANITIZACION DE ENTRADA (anti-inyeccion) =====
+    articulo = _validar_entero(articulo, 'articulo')
+    dep_origen = _validar_entero(dep_origen, 'deposito_origen')
+    dep_destino = _validar_entero(dep_destino, 'deposito_destino')
+    cantidad = _validar_decimal(cantidad, 'cantidad')
+    cantidad_sql = format(cantidad, 'f')
+    partida = _validar_entero(partida, 'partida') if partida not in (None, '') else None
+    fecha = _validar_fecha(fecha, 'fecha')
+
+    division = g.division
+    sucursal_imp = g.sucursal
+    sucursal_emp = getattr(g, 'sucursal_emp', sucursal_imp)
     fecha_sql = f"'{fecha}'" if fecha else "CAST(GETDATE() AS DATE)"
     if dep_origen == dep_destino:
         return {"error": "El depósito origen y destino no pueden ser el mismo"}
@@ -514,7 +655,7 @@ def _hacer_transferencia(articulo, dep_origen, dep_destino, cantidad, partida=No
             MOSD_DEPOSITO, MOSD_ARTICULO, MOSD_SIGNO, MOSD_MOD_STOCK, MOSD_CANT_ING, MOSD_UNIMED,
             MOSD_CANT_UNISTO, MOSD_FACTOR_UMS, MOSD_TIENE_PEDIDOS, MOSD_CREA_PARTIDAS, MOSD_TIENE_OC,
             MOSD_TIENE_REG_PPP, MOSD_TIENE_PPP_PAR)
-        VALUES (@movS, 1, 2, 0, {dep_origen}, {articulo}, 'S', 1, {cantidad}, 'UN', {cantidad}, 1, 0, 0, 0, 0, 0);
+        VALUES (@movS, 1, 2, 0, {dep_origen}, {articulo}, 'S', 1, {cantidad_sql}, 'UN', {cantidad_sql}, 1, 0, 0, 0, 0, 0);
     """)
 
     sql_parts.append(f"""
@@ -527,7 +668,7 @@ def _hacer_transferencia(articulo, dep_origen, dep_destino, cantidad, partida=No
             MOSD_DEPOSITO, MOSD_ARTICULO, MOSD_SIGNO, MOSD_MOD_STOCK, MOSD_CANT_ING, MOSD_UNIMED,
             MOSD_CANT_UNISTO, MOSD_FACTOR_UMS, MOSD_TIENE_PEDIDOS, MOSD_CREA_PARTIDAS, MOSD_TIENE_OC,
             MOSD_TIENE_REG_PPP, MOSD_TIENE_PPP_PAR)
-        VALUES (@movE, 1, 3, 0, {dep_destino}, {articulo}, 'E', 1, {cantidad}, 'UN', {cantidad}, 1, 0, 0, 0, 0, 0);
+        VALUES (@movE, 1, 3, 0, {dep_destino}, {articulo}, 'E', 1, {cantidad_sql}, 'UN', {cantidad_sql}, 1, 0, 0, 0, 0, 0);
     """)
 
     sql_parts.append(f"""
@@ -571,23 +712,23 @@ def _hacer_transferencia(articulo, dep_origen, dep_destino, cantidad, partida=No
     """)
 
     sql_parts.append(f"""
-        UPDATE STOC_STDP SET STDP_STOCK_ACT = STDP_STOCK_ACT - {cantidad}
+        UPDATE STOC_STDP SET STDP_STOCK_ACT = STDP_STOCK_ACT - {cantidad_sql}
         WHERE STDP_DEPOSITO={dep_origen} AND STDP_ARTICULO={articulo};
     """)
     sql_parts.append(f"""
         IF EXISTS (SELECT 1 FROM STOC_STDP WHERE STDP_DEPOSITO={dep_destino} AND STDP_ARTICULO={articulo})
-            UPDATE STOC_STDP SET STDP_STOCK_ACT = STDP_STOCK_ACT + {cantidad}
+            UPDATE STOC_STDP SET STDP_STOCK_ACT = STDP_STOCK_ACT + {cantidad_sql}
             WHERE STDP_DEPOSITO={dep_destino} AND STDP_ARTICULO={articulo};
         ELSE
             INSERT INTO STOC_STDP (STDP_DEPOSITO, STDP_ARTICULO, STDP_STOCK_ACT, STDP_STEGR_PED,
                 STDP_STEGR_FAB, STDP_STING_COM, STDP_STING_FAB, STDP_STRES_PED)
-            VALUES ({dep_destino}, {articulo}, {cantidad}, 0, 0, 0, 0, 0);
+            VALUES ({dep_destino}, {articulo}, {cantidad_sql}, 0, 0, 0, 0, 0);
     """)
 
     if con_partidas:
         sql_parts.append(f"""
             DECLARE @restanteP DECIMAL(18,4) = (SELECT SDPP_STOCK_ACT FROM STOC_SDPP
-                WHERE SDPP_DEPOSITO={dep_origen} AND SDPP_PARTIDA={partida} AND SDPP_ARTICULO={articulo}) - {cantidad};
+                WHERE SDPP_DEPOSITO={dep_origen} AND SDPP_PARTIDA={partida} AND SDPP_ARTICULO={articulo}) - {cantidad_sql};
         """)
         sql_parts.append(f"""
             IF @restanteP <= 0
@@ -598,11 +739,11 @@ def _hacer_transferencia(articulo, dep_origen, dep_destino, cantidad, partida=No
         """)
         sql_parts.append(f"""
             IF EXISTS (SELECT 1 FROM STOC_SDPP WHERE SDPP_DEPOSITO={dep_destino} AND SDPP_PARTIDA={partida} AND SDPP_ARTICULO={articulo})
-                UPDATE STOC_SDPP SET SDPP_STOCK_ACT = SDPP_STOCK_ACT + {cantidad}
+                UPDATE STOC_SDPP SET SDPP_STOCK_ACT = SDPP_STOCK_ACT + {cantidad_sql}
                 WHERE SDPP_DEPOSITO={dep_destino} AND SDPP_PARTIDA={partida} AND SDPP_ARTICULO={articulo};
             ELSE
                 INSERT INTO STOC_SDPP (SDPP_DEPOSITO, SDPP_PARTIDA, SDPP_ARTICULO, SDPP_STOCK_ACT, SDPP_STRES_PED)
-                VALUES ({dep_destino}, {partida}, {articulo}, {cantidad}, 0);
+                VALUES ({dep_destino}, {partida}, {articulo}, {cantidad_sql}, 0);
         """)
 
     sql_parts.append("COMMIT TRANSACTION;")
@@ -620,29 +761,37 @@ def _hacer_transferencia(articulo, dep_origen, dep_destino, cantidad, partida=No
     }
 
 @stock_bp.route('/transferencia', methods=["POST"])
+@requiere_permiso(PermisosSistema.STOCK_TRANSFERIR)
 def transferencia():
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "El cuerpo debe ser un objeto JSON"}), 400
     try:
         resultado = _hacer_transferencia(
-            data["articulo"], data["deposito_origen"], data["deposito_destino"],
-            data["cantidad"], data.get("partida"), data.get("fecha"), data.get("comentario")
+            data.get("articulo"), data.get("deposito_origen"), data.get("deposito_destino"),
+            data.get("cantidad"), data.get("partida"), data.get("fecha"), data.get("comentario")
         )
         if "error" in resultado:
             return jsonify(resultado), 400
         return jsonify(resultado)
+    except ErrorValidacion as e:
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @stock_bp.route('/transferencia/lote', methods=["POST"])
+@requiere_permiso(PermisosSistema.STOCK_TRANSFERIR)
 def transferencia_lote():
-    data = request.get_json()
-    filas = data.get("filas", [])
+    data = request.get_json(silent=True)
+    filas = data.get("filas", []) if isinstance(data, dict) else []
     resultados = []
     for i, fila in enumerate(filas):
         try:
+            if not isinstance(fila, dict):
+                raise ErrorValidacion("Cada fila debe ser un objeto")
             r = _hacer_transferencia(
-                fila["articulo"], fila["deposito_origen"], fila["deposito_destino"],
-                fila["cantidad"], fila.get("partida")
+                fila.get("articulo"), fila.get("deposito_origen"), fila.get("deposito_destino"),
+                fila.get("cantidad"), fila.get("partida")
             )
         except Exception as e:
             r = {"error": str(e)}
@@ -655,6 +804,7 @@ def transferencia_lote():
 # ============================================================
 
 @stock_bp.route('/excel/plantilla/<tipo>', methods=["GET"])
+@requiere_permiso(PermisosSistema.STOCK_IMPORTAR)
 def excel_plantilla(tipo):
     from flask import send_file
     import openpyxl
@@ -692,6 +842,7 @@ def excel_plantilla(tipo):
                      mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 @stock_bp.route('/excel/cargar/<tipo>', methods=["POST"])
+@requiere_permiso(PermisosSistema.STOCK_IMPORTAR)
 def excel_cargar(tipo):
     import openpyxl
     if "archivo" not in request.files:
@@ -903,6 +1054,7 @@ def _crear_articulo(nombre, codigo, categoria, con_partidas, se_compra, se_vende
     return {"ok": True, "articulo_id": r.get("ArticuloId")}
 
 @stock_bp.route('/articulo', methods=["POST"])
+@requiere_permiso(PermisosSistema.STOCK_CREAR)
 def crear_articulo():
     data = request.get_json()
     try:
@@ -917,6 +1069,7 @@ def crear_articulo():
         return jsonify({"error": str(e)}), 500
 
 @stock_bp.route('/articulo/<int:articulo_id>', methods=["GET"])
+@requiere_permiso(PermisosSistema.STOCK_VER)
 def detalle_articulo(articulo_id):
     rows = run_sql("""
         SELECT ARTS_ARTICULO, ARTS_NOMBRE, ARTS_ARTICULO_EMP, ARTS_TIPO_ART, ARTS_CON_PARTIDAS,
@@ -1020,6 +1173,7 @@ def _actualizar_articulo(articulo_id, nombre, codigo, categoria, con_partidas, s
     return {"ok": True, "articulo_id": articulo_id}
 
 @stock_bp.route('/articulo/<int:articulo_id>', methods=["PUT"])
+@requiere_permiso(PermisosSistema.STOCK_EDITAR)
 def actualizar_articulo(articulo_id):
     data = request.get_json()
     try:
@@ -1034,10 +1188,18 @@ def actualizar_articulo(articulo_id):
         return jsonify({"error": str(e)}), 500
 
 @stock_bp.route('/articulo/codigo/<codigo>/nombre', methods=["PUT"])
+@requiere_permiso(PermisosSistema.STOCK_EDITAR)
 def renombrar_articulo_por_codigo(codigo):
     data = request.get_json()
     nombre = data.get("nombre")
     bases = data.get("bases")
+    # C4: validar acceso a cada base destino (fail-closed).
+    _no_autorizadas = [
+        b for b in (bases or [])
+        if b in BASES_DISPONIBLES and chequear_acceso_base(b) is not None
+    ]
+    if _no_autorizadas:
+        return jsonify({"error": f"Base(s) no autorizada(s): {', '.join(_no_autorizadas)}", "code": "BASE_FORBIDDEN"}), 403
 
     if not bases:
         try:
@@ -1076,6 +1238,7 @@ def renombrar_articulo_por_codigo(codigo):
     return jsonify({"resultados_por_base": resultados_por_base})
 
 @stock_bp.route('/deposito/<int:deposito_id>/nombre', methods=["PUT"])
+@requiere_permiso(PermisosSistema.STOCK_EDITAR)
 def renombrar_deposito(deposito_id):
     data = request.get_json()
     nombre = data.get("nombre")
@@ -1090,10 +1253,18 @@ def renombrar_deposito(deposito_id):
     return jsonify({"ok": True, "deposito_id": deposito_id})
 
 @stock_bp.route('/deposito/<int:deposito_id>/nombre/multibases', methods=["PUT"])
+@requiere_permiso(PermisosSistema.STOCK_EDITAR)
 def renombrar_deposito_multibases(deposito_id):
     data = request.get_json()
     nombre = data.get("nombre")
     bases = data.get("bases", [])
+    # C4: validar acceso a cada base destino (fail-closed).
+    _no_autorizadas = [
+        b for b in (bases or [])
+        if b in BASES_DISPONIBLES and chequear_acceso_base(b) is not None
+    ]
+    if _no_autorizadas:
+        return jsonify({"error": f"Base(s) no autorizada(s): {', '.join(_no_autorizadas)}", "code": "BASE_FORBIDDEN"}), 403
 
     if not bases:
         return renombrar_deposito(deposito_id)
@@ -1184,6 +1355,7 @@ def _stock_en_base(base, q):
         return {}, {}
 
 @stock_bp.route('/stock/consolidado', methods=["GET"])
+@requiere_permiso(PermisosSistema.STOCK_REPORTES)
 def stock_consolidado():
     try:
         q = request.args.get("q", "").strip()

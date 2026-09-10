@@ -2,18 +2,6 @@
 // STOCK - ARTÍCULOS (CORREGIDO - XSS SANITIZADO)
 // ============================================================
 
-function escapeHTML(str) {
-    if (!str) return '';
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return String(str).replace(/[&<>"']/g, function(m) { return map[m]; });
-}
-
 function sanitizarValor(val) {
     if (val === undefined || val === null) return '';
     return escapeHTML(String(val));
@@ -216,6 +204,5 @@ window.cargarExcelArticulos = cargarExcelArticulos;
 window.aplicarDefaultPartidas = aplicarDefaultPartidas;
 window.actualizarCamposOrigen = actualizarCamposOrigen;
 window.actualizarCamposOrigenMod = actualizarCamposOrigenMod;
-window.escapeHTML = escapeHTML;
 
 console.log('✅ Stock - Artículos cargado (XSS sanitizado)');

@@ -8,12 +8,6 @@ let filtroMes = '';
 let monedaActual = 'PS';
 
 // Funciones auxiliares (sanitización, formateo)
-function escapeHTML(str) {
-    if (!str) return '';
-    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-    return String(str).replace(/[&<>"']/g, m => map[m]);
-}
-
 function sanitizarCSV(str) {
     if (!str) return '';
     return String(str).replace(/[=+\-@\t\r\n]/g, ' ');
@@ -344,9 +338,9 @@ function renderizarTablaDinamica(datos, moneda) {
     }
 
     let html = `
-        <div style="overflow-x:auto; max-height:500px; overflow-y:auto;">
+        <div style="overflow-x:auto;">
             <table class="table table-striped" style="font-size:12px; border-collapse:collapse; width:100%;">
-                <thead style="position:sticky; top:0; z-index:10; background:#f1f5f9;">
+                <thead style="background:#f1f5f9;">
                     <tr>
                         <th style="padding:8px 10px; border:1px solid #e2e8f0; min-width:110px; text-align:left; background:#f8fafc;">Contrato</th>
                         <th style="padding:8px 10px; border:1px solid #e2e8f0; min-width:140px; text-align:left; background:#f8fafc;">Cliente</th>
@@ -388,7 +382,7 @@ function renderizarTablaDinamica(datos, moneda) {
         html += `</tr>`;
     });
 
-    html += `<tfoot style="position:sticky; bottom:0; z-index:10; background:#f1f5f9;">`;
+    html += `<tfoot style="background:#f1f5f9;">`;
     html += `<tr style="font-weight:bold; background:#f0f4ff;">`;
     html += `<td colspan="3" style="padding:8px 10px; border:1px solid #e2e8f0; text-align:right; font-size:13px; background:#e8f0fe;">TOTAL GENERAL</td>`;
     columnas.forEach(colKey => {
@@ -411,7 +405,7 @@ function mostrarLoading(activo) {
 }
 
 // ============================================================
-// EXPORTAR A CSV
+// EXPORTAR A EXCEL (.xlsx vía backend)
 // ============================================================
 
 export function exportarExcel() {
@@ -432,29 +426,15 @@ export function exportarExcel() {
     }
 
     const columnas = ['CONTRATO', 'CLIENTE', 'CENTRO_COSTO', 'MONEDA', 'ANIO', 'MES', 'IMPORTE'];
-    let csv = columnas.join(',') + '\n';
-    datosExportar.forEach(row => {
-        csv += columnas.map(col => {
-            let valor = row[col] || '';
-            if (typeof valor === 'string') {
-                valor = sanitizarCSV(valor);
-                if (valor.includes(',') || valor.includes('"')) {
-                    valor = `"${valor.replace(/"/g, '""')}"`;
-                }
-            } else if (typeof valor === 'number') {
-                valor = valor.toString().replace('.', ',');
-            }
-            return valor;
-        }).join(',') + '\n';
-    });
+    const filas = datosExportar.map(row => columnas.map(col => row[col] ?? ''));
 
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `reporte_pendientes_${monedaActual}_${filtroAnio || 'todos'}_${new Date().toISOString().slice(0,10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const archivo = `reporte_pendientes_${monedaActual}_${filtroAnio || 'todos'}_${new Date().toISOString().slice(0,10)}.xlsx`;
+    if (typeof window.descargarXlsx === 'function') {
+        window.descargarXlsx(archivo, 'Pendientes', columnas, filas);
+    } else {
+        if (typeof toastError === 'function') toastError('Exportación no disponible', 'Reportes');
+        return;
+    }
     if (typeof toastSuccess === 'function') toastSuccess('✅ Reporte exportado', 'Reportes');
 }
 

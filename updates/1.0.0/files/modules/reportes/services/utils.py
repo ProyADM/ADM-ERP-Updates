@@ -7,7 +7,7 @@ import pyodbc
 import pandas as pd
 import logging
 from datetime import datetime, timedelta
-from config import SQL_SERVER, SQL_USERNAME, SQL_PASSWORD, BASES_DISPONIBLES
+from config import SQL_SERVER, SQL_USERNAME, SQL_PASSWORD, BASES_DISPONIBLES, SQL_ENCRYPT_ACTIVO
 from modules.shared.database import get_db_context
 
 logger = logging.getLogger(__name__)
@@ -28,13 +28,38 @@ def get_db_connection():
             f'UID={SQL_USERNAME};'
             f'PWD={SQL_PASSWORD};'
             'TrustServerCertificate=yes;'
-            'Timeout=10;'
-            'Connect Timeout=10;'
+            + ('Encrypt=yes;' if SQL_ENCRYPT_ACTIVO else '')
+            + 'Timeout=10;'
+            + 'Connect Timeout=10;'
         )
         return conn, division
     except Exception as e:
+        # Detalle completo SOLO al log; el cliente recibe mensaje genérico.
         logger.error(f"Error de conexión: {e}")
-        raise
+        raise RuntimeError("Error de conexión a la base de datos")
+
+def _validar_base_solicitada(database, sociedad=None):
+    """
+    Valida que la base pedida exista en la whitelist BASES_DISPONIBLES
+    (evita inyección en connection string / SSRF por el parámetro base).
+    Para Argentina (plataforma) valida también la sociedad.
+    Retorna el dict de info de la base.
+    """
+    info = BASES_DISPONIBLES.get(database)
+    if info is None:
+        raise RuntimeError(
+            f"Base de datos no permitida: '{database}'. "
+            f"Bases válidas: {', '.join(BASES_DISPONIBLES.keys())}"
+        )
+    if database == 'plataforma':
+        sociedades = info.get('sociedades', {})
+        sociedad_efectiva = sociedad or 'sidesys'
+        if sociedad_efectiva not in sociedades:
+            raise RuntimeError(
+                f"Sociedad no permitida para la base '{database}': '{sociedad_efectiva}'. "
+                f"Sociedades válidas: {', '.join(sociedades.keys())}"
+            )
+    return info
 
 def get_db_connection_base(database, sociedad=None):
     """
@@ -42,7 +67,7 @@ def get_db_connection_base(database, sociedad=None):
     Retorna (conn, division)
     """
     try:
-        info = BASES_DISPONIBLES.get(database, {})
+        info = _validar_base_solicitada(database, sociedad)
         server = info.get("server") or SQL_SERVER
 
         # Si es Argentina y no se especificó sociedad, usar sidesys
@@ -66,13 +91,19 @@ def get_db_connection_base(database, sociedad=None):
             f'UID={SQL_USERNAME};'
             f'PWD={SQL_PASSWORD};'
             'TrustServerCertificate=yes;'
-            'Timeout=10;'
-            'Connect Timeout=10;'
+            + ('Encrypt=yes;' if SQL_ENCRYPT_ACTIVO else '')
+            + 'Timeout=10;'
+            + 'Connect Timeout=10;'
         )
         return conn, division
-    except Exception as e:
-        logger.error(f"Error de conexión a {database}: {e}")
+    except RuntimeError:
+        # Base/sociedad no permitida: mensaje seguro, propagar tal cual.
+        logger.warning(f"Intento de conexión a base no permitida: {database}")
         raise
+    except Exception as e:
+        # Detalle completo SOLO al log; el cliente recibe mensaje genérico.
+        logger.error(f"Error de conexión a {database}: {e}")
+        raise RuntimeError("Error de conexión a la base de datos")
 
 # ============================================================
 # LIMPIEZA DE DATOS (DataFrames)

@@ -9,18 +9,6 @@ import { renderFacturas } from './render.js';
 // FUNCIÓN DE SANITIZACIÓN
 // ============================================================
 
-function escapeHTML(str) {
-    if (!str) return '';
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return String(str).replace(/[&<>"']/g, function(m) { return map[m]; });
-}
-
 function sanitizarValor(val) {
     if (val === undefined || val === null) return '';
     return escapeHTML(String(val));

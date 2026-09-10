@@ -3,12 +3,6 @@
 // ============================================================
 
 // Funciones auxiliares (sanitización, formateo)
-function escapeHTML(str) {
-    if (!str) return '';
-    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-    return String(str).replace(/[&<>"']/g, m => map[m]);
-}
-
 function formatearNumero(valor) {
     const num = parseFloat(valor);
     if (isNaN(num)) return '0,00';
@@ -164,7 +158,7 @@ function cargarSelectoresVentaManual() {
                 // Mostramos la SIGLA en el select (pero el valor sigue siendo el nombre completo)
                 const sigla = window.siglaBase(baseCodigo) || nombrePais;
                 selectPais.disabled = true;
-                selectPais.innerHTML = `<option value="${nombrePais}">${sigla}</option>`;
+                selectPais.innerHTML = `<option value="${escapeHTML(nombrePais)}">${escapeHTML(sigla)}</option>`;
                 selectPais.dataset.paisFijo = nombrePais;
                 paisWrapper.style.display = 'block';
             }
@@ -214,7 +208,7 @@ export function guardarVentaManual() {
         return;
     }
 
-    const btnGuardar = document.querySelector('#modal-venta-manual button[onclick="guardarVentaManual()"]');
+    const btnGuardar = document.querySelector('#modal-venta-manual button[data-onclick="guardarVentaManual()"]');
     if (btnGuardar) {
         btnGuardar.disabled = true;
         btnGuardar.textContent = '⏳ Guardando...';
@@ -325,18 +319,13 @@ export function descargarPlantillaVentasManuales() {
     const columnas = ['base', 'anio', 'mes', 'pais', 'fecha_registro', 'sociedad', 'centro_costo', 'importe_usd', 'importe_ps', 'comentario'];
     const ejemplo = ['plataforma_rd', '2026', '8', 'República Dominicana', '2026-08-15', '', '410101', '1500.00', '95000.00', 'Venta manual de ejemplo'];
     const ejemplo2 = ['plataforma_py', '2026', '7', 'Paraguay', '2026-07-20', '', '410102', '2500.00', '0.00', 'Venta Paraguay'];
-    let csvContent = columnas.join(',') + '\n';
-    csvContent += ejemplo.join(',') + '\n';
-    csvContent += ejemplo2.join(',') + '\n';
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'plantilla_ventas_manuales.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const filas = [ejemplo, ejemplo2];
+    if (typeof window.descargarXlsx === 'function') {
+        window.descargarXlsx('plantilla_ventas_manuales.xlsx', 'Plantilla', columnas, filas);
+    } else {
+        if (typeof toastError === 'function') toastError('Descarga no disponible', 'Éxito');
+        return;
+    }
     if (typeof toastSuccess === 'function') toastSuccess('Plantilla descargada', 'Éxito');
 }
 
@@ -396,18 +385,18 @@ function cargarListaVentasManuales() {
                         <td style="text-align:right;">${formatearNumero(importe_ps)}</td>
                         <td>${fechaReg}</td>
                         <td>
-                            <button onclick="window.eliminarVentaManual(${v.id})" style="background:#dc2626;color:white;border:none;border-radius:4px;padding:2px 8px;cursor:pointer;">🗑</button>
+                            <button data-onclick="window.eliminarVentaManual(${v.id})" style="background:#dc2626;color:white;border:none;border-radius:4px;padding:2px 8px;cursor:pointer;">🗑</button>
                         </td>
                     </tr>
                 `;
             });
             tbody.innerHTML = html;
         } else {
-            tbody.innerHTML = `<tr><td colspan="9" style="color:#dc2626;">Error: ${data.error}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="9" style="color:#dc2626;">Error: ${escapeHTML(data.error)}</td></tr>`;
         }
     })
     .catch(e => {
-        tbody.innerHTML = `<tr><td colspan="9" style="color:#dc2626;">Error al cargar: ${e.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" style="color:#dc2626;">Error al cargar: ${escapeHTML(e.message)}</td></tr>`;
     });
 }
 

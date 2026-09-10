@@ -242,46 +242,59 @@ class GestorUsuarios:
             print(f"[ERROR] Error al guardar roles: {e}")
     
     def _crear_roles_base(self):
-        """Crea los roles base del sistema"""
-        from .permisos import PermisosSistema
-        
-        todos_permisos = PermisosSistema.obtener_todos_permisos()
-        
-        if not isinstance(todos_permisos, list):
-            print(f"[ERROR] todos_permisos no es una lista: {type(todos_permisos)}")
-            todos_permisos = []
-        
+        """Crea los roles base del sistema (set canónico, espejo de roles.json)"""
+        # ⚠️ Set CANÓNICO de roles. Debe coincidir con data/roles.json (fuente
+        # de verdad): solo se usa si el archivo falta o está corrupto. Si se
+        # cambian roles/permisos, cambiar AMBOS lugares.
         self.roles = {
             "superadmin": {
                 "id": "superadmin",
                 "nombre": "Super Administrador",
                 "descripcion": "Acceso TOTAL - Solo el creador del sistema",
-                "permisos": todos_permisos,
+                "permisos": [
+                    "admin.acceso", "admin.auditoria.exportar", "admin.auditoria.ver",
+                    "admin.backup", "admin.bases.config", "admin.dashboard",
+                    "admin.modulos.config", "admin.permisos.asignar", "admin.restaurar",
+                    "admin.roles.crear", "admin.roles.editar", "admin.roles.eliminar",
+                    "admin.roles.ver", "admin.sistema.config", "admin.usuarios.asignar_rol",
+                    "admin.usuarios.bloquear", "admin.usuarios.crear", "admin.usuarios.editar",
+                    "admin.usuarios.eliminar", "admin.usuarios.ver",
+                    "base.desarrollo.editar", "base.desarrollo.ver",
+                    "base.produccion.editar", "base.produccion.ver",
+                    "base.test.editar", "base.test.ver",
+                    "cotizaciones.anular", "cotizaciones.aprobar", "cotizaciones.config",
+                    "cotizaciones.crear", "cotizaciones.editar", "cotizaciones.eliminar",
+                    "cotizaciones.exportar", "cotizaciones.reportes", "cotizaciones.ver",
+                    "cxp.anular", "cxp.aprobar", "cxp.config", "cxp.crear", "cxp.editar",
+                    "cxp.eliminar", "cxp.exportar", "cxp.importar", "cxp.reportes", "cxp.ver",
+                    "reportes.config", "reportes.crear", "reportes.editar", "reportes.eliminar",
+                    "reportes.exportar", "reportes.importar", "reportes.programar", "reportes.ver",
+                    "stock.ajustar", "stock.config", "stock.crear", "stock.editar",
+                    "stock.eliminar", "stock.exportar", "stock.importar", "stock.reportes",
+                    "stock.transferir", "stock.ver"
+                ],
                 "es_admin": True,
                 "nivel": 100,
                 "color": "#dc3545"
             },
-            "admin": {
-                "id": "admin",
+            "administrador": {
+                "id": "administrador",
                 "nombre": "Administrador",
-                "descripcion": "Acceso a administración del sistema",
+                "descripcion": "Administración general - sin acceso a configuración crítica del sistema",
                 "permisos": [
-                    PermisosSistema.ADMIN_ACCESO,
-                    PermisosSistema.ADMIN_DASHBOARD,
-                    PermisosSistema.ADMIN_USUARIOS_VER,
-                    PermisosSistema.ADMIN_USUARIOS_CREAR,
-                    PermisosSistema.ADMIN_USUARIOS_EDITAR,
-                    PermisosSistema.ADMIN_USUARIOS_ELIMINAR,
-                    PermisosSistema.ADMIN_USUARIOS_ASIGNAR_ROL,
-                    PermisosSistema.ADMIN_ROLES_VER,
-                    PermisosSistema.ADMIN_ROLES_CREAR,
-                    PermisosSistema.ADMIN_ROLES_EDITAR,
-                    PermisosSistema.ADMIN_PERMISOS_ASIGNAR,
-                    PermisosSistema.ADMIN_AUDITORIA_VER,
-                    PermisosSistema.CXP_VER, PermisosSistema.CXP_APROBAR,
-                    PermisosSistema.STOCK_VER, PermisosSistema.STOCK_AJUSTAR,
-                    PermisosSistema.COTIZACIONES_VER, PermisosSistema.COTIZACIONES_APROBAR,
-                    PermisosSistema.REPORTES_VER, PermisosSistema.REPORTES_CREAR
+                    "admin.dashboard", "admin.modulos.config", "admin.roles.ver",
+                    "admin.usuarios.asignar_rol", "admin.usuarios.bloquear",
+                    "admin.usuarios.crear", "admin.usuarios.editar", "admin.usuarios.ver",
+                    "cotizaciones.anular", "cotizaciones.aprobar", "cotizaciones.crear",
+                    "cotizaciones.editar", "cotizaciones.eliminar", "cotizaciones.exportar",
+                    "cotizaciones.reportes", "cotizaciones.ver",
+                    "cxp.anular", "cxp.aprobar", "cxp.crear", "cxp.editar",
+                    "cxp.eliminar", "cxp.exportar", "cxp.importar", "cxp.reportes", "cxp.ver",
+                    "reportes.crear", "reportes.editar", "reportes.eliminar",
+                    "reportes.exportar", "reportes.ver",
+                    "stock.ajustar", "stock.crear", "stock.editar", "stock.eliminar",
+                    "stock.exportar", "stock.importar", "stock.reportes",
+                    "stock.transferir", "stock.ver"
                 ],
                 "es_admin": True,
                 "nivel": 90,
@@ -290,74 +303,43 @@ class GestorUsuarios:
             "gerente": {
                 "id": "gerente",
                 "nombre": "Gerente",
-                "descripcion": "Acceso a gestión y reportes",
+                "descripcion": "Acceso a reportes y gestión, sin configuración ni eliminación",
                 "permisos": [
-                    PermisosSistema.CXP_VER, PermisosSistema.CXP_APROBAR, 
-                    PermisosSistema.CXP_REPORTES,
-                    PermisosSistema.STOCK_VER, PermisosSistema.STOCK_AJUSTAR,
-                    PermisosSistema.STOCK_REPORTES,
-                    PermisosSistema.COTIZACIONES_VER, 
-                    PermisosSistema.COTIZACIONES_APROBAR,
-                    PermisosSistema.REPORTES_VER, PermisosSistema.REPORTES_CREAR,
-                    PermisosSistema.REPORTES_EXPORTAR
+                    "admin.dashboard", "admin.roles.ver", "admin.usuarios.ver",
+                    "cotizaciones.aprobar", "cotizaciones.crear", "cotizaciones.editar",
+                    "cotizaciones.exportar", "cotizaciones.reportes", "cotizaciones.ver",
+                    "cxp.aprobar", "cxp.crear", "cxp.editar", "cxp.exportar",
+                    "cxp.importar", "cxp.reportes", "cxp.ver",
+                    "reportes.crear", "reportes.editar", "reportes.exportar", "reportes.ver",
+                    "stock.ajustar", "stock.crear", "stock.editar", "stock.exportar",
+                    "stock.reportes", "stock.transferir", "stock.ver"
                 ],
                 "es_admin": False,
                 "nivel": 80,
                 "color": "#fd7e14"
             },
-            "contador": {
-                "id": "contador",
-                "nombre": "Contador",
-                "descripcion": "Acceso a módulos financieros",
+            "usuario": {
+                "id": "usuario",
+                "nombre": "Usuario",
+                "descripcion": "Acceso básico - solo lectura y creación de registros",
                 "permisos": [
-                    PermisosSistema.CXP_VER, PermisosSistema.CXP_REPORTES,
-                    PermisosSistema.STOCK_VER, PermisosSistema.STOCK_REPORTES,
-                    PermisosSistema.COTIZACIONES_VER,
-                    PermisosSistema.REPORTES_VER, PermisosSistema.REPORTES_EXPORTAR
-                ],
-                "es_admin": False,
-                "nivel": 70,
-                "color": "#20c997"
-            },
-            "almacenista": {
-                "id": "almacenista",
-                "nombre": "Almacenista",
-                "descripcion": "Gestión de inventario",
-                "permisos": [
-                    PermisosSistema.STOCK_VER, PermisosSistema.STOCK_CREAR,
-                    PermisosSistema.STOCK_EDITAR, PermisosSistema.STOCK_AJUSTAR,
-                    PermisosSistema.STOCK_TRANSFERIR, PermisosSistema.STOCK_REPORTES,
-                    PermisosSistema.COTIZACIONES_VER,
-                    PermisosSistema.REPORTES_VER
-                ],
-                "es_admin": False,
-                "nivel": 60,
-                "color": "#0dcaf0"
-            },
-            "vendedor": {
-                "id": "vendedor",
-                "nombre": "Vendedor",
-                "descripcion": "Gestión de ventas y cotizaciones",
-                "permisos": [
-                    PermisosSistema.COTIZACIONES_VER, 
-                    PermisosSistema.COTIZACIONES_CREAR,
-                    PermisosSistema.COTIZACIONES_EDITAR,
-                    PermisosSistema.STOCK_VER,
-                    PermisosSistema.REPORTES_VER
+                    "admin.dashboard", "admin.usuarios.ver",
+                    "cotizaciones.crear", "cotizaciones.ver",
+                    "cxp.crear", "cxp.ver",
+                    "reportes.ver",
+                    "stock.crear", "stock.ver"
                 ],
                 "es_admin": False,
                 "nivel": 50,
-                "color": "#6f42c1"
+                "color": "#0dcaf0"
             },
             "invitado": {
                 "id": "invitado",
                 "nombre": "Invitado",
-                "descripcion": "Acceso solo de lectura",
+                "descripcion": "Acceso solo lectura a reportes y dashboard",
                 "permisos": [
-                    PermisosSistema.CXP_VER,
-                    PermisosSistema.STOCK_VER,
-                    PermisosSistema.COTIZACIONES_VER,
-                    PermisosSistema.REPORTES_VER
+                    "admin.dashboard",
+                    "cotizaciones.ver", "cxp.ver", "reportes.ver", "stock.ver"
                 ],
                 "es_admin": False,
                 "nivel": 10,
@@ -615,7 +597,11 @@ class GestorUsuarios:
             return False
         
         usuario = self.usuarios[username]
-        return usuario.es_superadmin or 'admin' in usuario.roles
+        if usuario.es_superadmin:
+            return True
+        # Rol canónico: 'administrador' (roles.json). 'admin' se conserva como
+        # alias legacy de flujos AD/versiones anteriores.
+        return any(r in ('administrador', 'admin') for r in usuario.roles)
     
     def tiene_acceso_a_base(self, username: str, base: str) -> bool:
         if username not in self.usuarios:
@@ -645,6 +631,42 @@ class GestorUsuarios:
         
         return modulo in usuario.modulos_permitidos
     
+    # ============================================================
+    # C4 - FUENTE DE VERDAD ÚNICA PARA AUTORIZACIÓN
+    # ============================================================
+
+    def puede_acceder_todas_bases(self, username: str) -> bool:
+        """True solo para superadmin o usuarios con bases_permitidas=['*'].
+        C4: los reportes/escrituras multi-base (todas las bases) exigen esto."""
+        if username not in self.usuarios:
+            return False
+        usuario = self.usuarios[username]
+        return usuario.es_superadmin or "*" in usuario.bases_permitidas
+
+    def datos_usuario_completo(self, username: str) -> Optional[Dict]:
+        """Shape único del usuario (roles + permisos + bases) usado por app.py,
+        decoradores y /api/auth/current_user. Reemplaza la lectura cruda de
+        roles.json/usuarios.json que duplicaba esta lógica en app.py."""
+        usuario = self.usuarios.get(username)
+        if not usuario:
+            return None
+        rol = usuario.roles[0] if usuario.roles else 'invitado'
+        return {
+            'username': usuario.username,
+            'nombre': usuario.nombre,
+            'email': usuario.email,
+            'rol': rol,
+            'roles': list(usuario.roles),
+            'permisos': self.obtener_permisos_usuario(username),
+            'es_superadmin': usuario.es_superadmin,
+            'activo': usuario.activo,
+            'bloqueado': usuario.bloqueado,
+            'bases_permitidas': list(usuario.bases_permitidas),
+            'modulos_permitidos': list(usuario.modulos_permitidos),
+            'permisos_extra': list(usuario.permisos_extra),
+            'permisos_restringidos': list(usuario.permisos_restringidos)
+        }
+
     # ============================================================
     # MÉTODOS PARA ADMIN
     # ============================================================

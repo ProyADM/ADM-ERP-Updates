@@ -8,6 +8,8 @@
 from flask import Blueprint, request, jsonify, current_app
 from config import BASES_DISPONIBLES, BASE_DEFAULT, SOCIEDAD_DEFAULT
 from .database import run_sql, run_sql_db
+from .decorators import requiere_admin, chequear_acceso_total_bases
+from .relanzar import lanzar_relanzador
 import subprocess
 import threading
 import os
@@ -61,13 +63,30 @@ def centros_costo():
     return jsonify(rows)
 
 @shared_bp.route('/reiniciar', methods=['POST'])
+@requiere_admin
 def reiniciar():
+    """Reinicia la app con un relanzador DESPRENDIDO.
+
+    Antes esto hacia `subprocess.Popen([python] + sys.argv, cwd=modules/shared)`:
+    el cwd era el del modulo (config.py no encontraba .env.local), el hijo
+    quedaba atado al padre y el proceso nuevo moria al arrancar. Ahora se usa el
+    mismo mecanismo que el auto-reinicio de actualizaciones.
+    """
     def _restart():
-        time.sleep(0.8)
-        subprocess.Popen([sys.executable] + sys.argv, cwd=os.path.dirname(os.path.abspath(__file__)))
-        os._exit(0)
+        time.sleep(0.5)
+        try:
+            app_dir = current_app.config.get('APP_INSTALL_DIR') or os.getcwd()
+            puerto = int(os.environ.get('APP_PORT', '5000'))
+            ok, detalle = lanzar_relanzador(app_dir, puerto=puerto, motivo='api_reiniciar')
+            if not ok:
+                logger.error(f"No se pudo lanzar el relanzador: {detalle}")
+        except Exception as e:
+            logger.error(f"Error al reiniciar: {e}")
+        finally:
+            os._exit(0)
+
     threading.Thread(target=_restart, daemon=True).start()
-    return jsonify({"ok": True})
+    return jsonify({"ok": True, "mensaje": "Reiniciando la aplicación..."})
 
 # ============================================================
 # NUEVO: NOTIFICACIONES GLOBALES
@@ -78,8 +97,16 @@ def notificaciones_resumen():
     """
     Devuelve el número de cambios recientes (stock, ventas, contratos)
     en todas las bases desde un timestamp dado.
+
+    C4: es una lectura multi-base sobre TODAS las bases → exige superadmin o
+    bases_permitidas=['*'] (un usuario parcial no debe recibir totales globales
+    parciales).
     """
     try:
+        chequeo = chequear_acceso_total_bases()
+        if chequeo:
+            return chequeo
+
         desde_str = request.args.get('desde')
         if desde_str:
             try:

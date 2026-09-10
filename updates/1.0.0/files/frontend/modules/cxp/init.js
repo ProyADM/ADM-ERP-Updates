@@ -16,7 +16,9 @@ const MAX_INTENTOS = 10;
 const INTERVALO_INTENTO = 800; // ms
 
 // 🔴 NUEVO: Recordar última sección del drawer
-const STORAGE_KEY = process.env.CXP_STORAGE_KEY || 'cxp_ultima_seccion';
+// (antes: process.env.CXP_STORAGE_KEY — process no existe en el navegador y
+// rompía la evaluación de este módulo; se usa un literal)
+const STORAGE_KEY = 'cxp_ultima_seccion';
 
 export function crearBotonSelector() {
     console.log('ℹ️ Botón selector eliminado - El dropzone maneja la selección de archivos');

@@ -1,17 +1,16 @@
 {
-  "version": "1.0.1",
-  "release_date": "2026-09-10 16:41:35",
+  "version": "1.0.0",
+  "release_date": "2026-09-10 20:38:48",
   "changelog": [
-    "Remediación de la auditoría de seguridad (SQLi, secretos, control de acceso por rol/base)",
-    "Firma Ed25519 del canal de actualizaciones y verificación SHA-256 de cada archivo",
-    "Sistema de actualizaciones: pop-up, descarga diferencial, instalación y auto-reinicio con la versión nueva",
-    "Corrección crítica: el updater comparaba el hash de otro archivo y abortaba toda actualización",
-    "Login remoto por usuario/contraseña contra Windows/AD (sin almacenar credenciales)",
-    "Exportación real a .xlsx en reportes y plantillas",
-    "CSP fuerte, escape central de HTML y ocultamiento de UI por permisos"
+    "Version base consolidada de ADM-ERP (incluye la remediacion completa de la auditoria de seguridad)",
+    "Actualizaciones diferenciales por archivo, firmadas (Ed25519 + SHA-256 por archivo) y con auto-reinicio",
+    "Instalador con Python incluido: la PC destino no necesita instalar nada",
+    "Control de acceso por rol y por base en todos los modulos de negocio",
+    "Login remoto por usuario/contrasena contra Windows/AD",
+    "Exportacion real a .xlsx en reportes y plantillas"
   ],
-  "manifest_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/updates/1.0.1/manifest.json",
-  "files_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/updates/1.0.1/files/",
+  "manifest_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/updates/1.0.0/manifest.json",
+  "files_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/updates/1.0.0/files/",
   "deleted_url": null,
   "installer_url": "https://github.com/ProyADM/ADM-ERP-Updates/releases/download/installer-latest/ADM-ERP_Setup_Latest.exe",
   "requires_restart": true,

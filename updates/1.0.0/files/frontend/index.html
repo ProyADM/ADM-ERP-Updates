@@ -28,17 +28,17 @@
   </div>
 
   <nav id="module-nav">
-    <button class="module-tab active" data-module="dashboard" onclick="cambiarModulo('dashboard'); openDrawer();">🏠 Inicio</button>
-    <button class="module-tab" data-module="stock" onclick="cambiarModulo('stock'); openDrawer();">📦 Stock</button>
-    <button class="module-tab" data-module="cxp" onclick="cambiarModulo('cxp'); openDrawer();">💳 CxP</button>
-    <button class="module-tab" data-module="cotizaciones" onclick="cambiarModulo('cotizaciones'); openDrawer();">💱 Cotizaciones</button>
-    <button class="module-tab" data-module="reportes" onclick="cambiarModulo('reportes'); openDrawer();">📊 Reportes</button>    
+    <button class="module-tab active" data-module="dashboard" data-onclick="cambiarModulo('dashboard'); openDrawer();">🏠 Inicio</button>
+    <button class="module-tab" data-module="stock" data-onclick="cambiarModulo('stock'); openDrawer();">📦 Stock</button>
+    <button class="module-tab" data-module="cxp" data-onclick="cambiarModulo('cxp'); openDrawer();">💳 CxP</button>
+    <button class="module-tab" data-module="cotizaciones" data-onclick="cambiarModulo('cotizaciones'); openDrawer();">💱 Cotizaciones</button>
+    <button class="module-tab" data-module="reportes" data-onclick="cambiarModulo('reportes'); openDrawer();">📊 Reportes</button>    
   </nav>
 
   <div class="topbar-spacer"></div>
 
   <div id="base-picker" class="base-select">
-    <button class="base-trigger" onclick="toggleBasePicker()" data-tooltip="selectorBase">
+    <button class="base-trigger" data-onclick="toggleBasePicker()" data-tooltip="selectorBase">
       <span class="lbl">Base</span>
       <span class="val" id="base-btn-label">República Dominicana</span>
       <span class="chev">▾</span>
@@ -47,7 +47,7 @@
   </div>
 
   <div id="sociedad-picker" class="base-select" style="display:none">
-    <button class="base-trigger" onclick="toggleSociedadPicker()" data-tooltip="selectorSociedad">
+    <button class="base-trigger" data-onclick="toggleSociedadPicker()" data-tooltip="selectorSociedad">
       <span class="lbl">Sociedad</span>
       <span class="val" id="sociedad-btn-label">Sidesys</span>
       <span class="chev">▾</span>
@@ -76,7 +76,7 @@
 <nav id="drawer">
   <div class="drawer-header">
     <span>Menú</span>
-    <button id="drawer-close" onclick="closeDrawer()">✕</button>
+    <button id="drawer-close" data-onclick="closeDrawer()">✕</button>
   </div>
 
   <!-- === STOCK === -->
@@ -139,16 +139,16 @@
   <div class="drawer-module" data-module="reportes" style="display:none">
     <div class="drawer-category">📊 Reportes</div>
     <div class="drawer-group">
-        <div class="drawer-tab active" data-tab="reportes-pendiente-facturar" onclick="cambiarReporte('contratos'); closeDrawer();" data-tooltip="drawerReportesPendienteFacturar">📄 Pendiente de Facturar</div>
+        <div class="drawer-tab active" data-tab="reportes-pendiente-facturar" data-onclick="cambiarReporte('contratos'); closeDrawer();" data-tooltip="drawerReportesPendienteFacturar">📄 Pendiente de Facturar</div>
     </div>
     <div class="drawer-group">
-        <div class="drawer-tab" data-tab="reportes-pendiente-cobro" onclick="cambiarReporte('pendiente-cobro'); closeDrawer();" data-tooltip="drawerReportesPendienteCobro">💰 Pendiente de Cobro</div>
+        <div class="drawer-tab" data-tab="reportes-pendiente-cobro" data-onclick="cambiarReporte('pendiente-cobro'); closeDrawer();" data-tooltip="drawerReportesPendienteCobro">💰 Pendiente de Cobro</div>
     </div>
     <div class="drawer-group">
-        <div class="drawer-tab" data-tab="reportes-consolidado-pais" onclick="cambiarReporte('consolidado-pais'); closeDrawer();" data-tooltip="drawerReportesConsolidadoPais">🌍 Ventas por País</div>
+        <div class="drawer-tab" data-tab="reportes-consolidado-pais" data-onclick="cambiarReporte('consolidado-pais'); closeDrawer();" data-tooltip="drawerReportesConsolidadoPais">🌍 Ventas por País</div>
     </div>
     <div class="drawer-group">
-        <div class="drawer-tab" data-tab="reportes-consolidado-total" onclick="cambiarReporte('consolidado-total'); closeDrawer();" data-tooltip="drawerReportesConsolidadoTotal">🌐 Ventas Globales</div>
+        <div class="drawer-tab" data-tab="reportes-consolidado-total" data-onclick="cambiarReporte('consolidado-total'); closeDrawer();" data-tooltip="drawerReportesConsolidadoTotal">🌐 Ventas Globales</div>
     </div>
   </div>
 </nav>
@@ -180,7 +180,7 @@
   <div style="background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);padding:28px 24px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
       <div style="font-size:16px;font-weight:700;color:var(--ink)" id="modal-corregir-titulo"></div>
-      <button onclick="cerrarModalCorregir()" style="background:transparent;color:var(--ink-soft);border:none;font-size:18px;padding:4px 8px;line-height:1">✕</button>
+      <button data-onclick="cerrarModalCorregir()" style="background:transparent;color:var(--ink-soft);border:none;font-size:18px;padding:4px 8px;line-height:1">✕</button>
     </div>
     <div style="font-size:12px;color:var(--ink-soft);margin-bottom:18px">Código: <b id="modal-corregir-codigo"></b></div>
     <label>Nombre nuevo</label>
@@ -189,8 +189,8 @@
     <div id="modal-corregir-bases" style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:18px"></div>
     <div id="modal-corregir-msg"></div>
     <div style="display:flex;gap:10px;margin-top:16px">
-      <button id="modal-corregir-btn" onclick="aplicarCorreccionModal()" style="flex:1">Aplicar</button>
-      <button onclick="cerrarModalCorregir()" class="secondary" style="flex:1">Cancelar</button>
+      <button id="modal-corregir-btn" data-onclick="aplicarCorreccionModal()" style="flex:1">Aplicar</button>
+      <button data-onclick="cerrarModalCorregir()" class="secondary" style="flex:1">Cancelar</button>
     </div>
   </div>
 </div>
@@ -198,13 +198,13 @@
 <div id="stock-toast" style="display:none;position:fixed;bottom:24px;right:24px;z-index:60;width:300px;background:#2a2a3e;border-radius:var(--radius);border:0.5px solid rgba(255,255,255,0.12);padding:14px 16px;box-shadow:0 8px 32px rgba(0,0,0,0.28)">
   <div id="stock-toast-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
     <span id="stock-toast-title" style="font-size:14px;font-weight:600;color:white">Nuevos movimientos de stock</span>
-    <button onclick="cerrarToast()" style="background:transparent;color:rgba(255,255,255,0.4);border:none;padding:0 4px;font-size:16px;line-height:1">✕</button>
+    <button data-onclick="cerrarToast()" style="background:transparent;color:rgba(255,255,255,0.4);border:none;padding:0 4px;font-size:16px;line-height:1">✕</button>
   </div>
   <div id="stock-toast-body" style="font-size:13px;color:rgba(255,255,255,0.65);margin-bottom:4px"></div>
   <div id="stock-toast-paises" style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:12px"></div>
   <div style="display:flex;gap:8px">
-    <button id="stock-toast-ver" style="flex:1;padding:7px 0;background:var(--primary);color:white;font-size:13px;font-weight:600;border:none;border-radius:6px" onclick="irConsolidadoDesdeToast()">Ver consolidado</button>
-    <button id="stock-toast-ignorar" style="flex:1;padding:7px 0;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);font-size:13px;border:none;border-radius:6px" onclick="cerrarToast()">Ignorar</button>
+    <button id="stock-toast-ver" style="flex:1;padding:7px 0;background:var(--primary);color:white;font-size:13px;font-weight:600;border:none;border-radius:6px" data-onclick="irConsolidadoDesdeToast()">Ver consolidado</button>
+    <button id="stock-toast-ignorar" style="flex:1;padding:7px 0;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);font-size:13px;border:none;border-radius:6px" data-onclick="cerrarToast()">Ignorar</button>
   </div>
 </div>
 
@@ -213,7 +213,7 @@
      ============================================================ -->
 <div id="update-banner" style="position:fixed;top:0;left:0;right:0;z-index:999;background:var(--primary);color:#fff;padding:10px 20px;display:none;align-items:center;justify-content:center;gap:12px;font-size:13px;font-weight:500">
   <span>↺ Hay una nueva versión disponible.</span>
-  <button onclick="actualizarApp()" style="background:#fff;color:var(--primary);border:none;border-radius:5px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer">Actualizar ahora</button>
+  <button data-onclick="actualizarApp()" style="background:#fff;color:var(--primary);border:none;border-radius:5px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer">Actualizar ahora</button>
 </div>
 
 <!-- ============================================================
@@ -237,11 +237,11 @@
     </div>
     
     <div style="display: flex; gap: 10px; margin-top: 15px;">
-        <button onclick="instalarActualizacion()" style="flex: 1; background: #2563eb; color: #fff; 
+        <button id="btn-actualizar-ahora" data-onclick="instalarActualizacion()" style="flex: 1; background: #2563eb; color: #fff; 
                 border: none; border-radius: 6px; padding: 10px; cursor: pointer; font-weight: 600;">
             🔄 Actualizar ahora
         </button>
-        <button onclick="cerrarNotificacion()" style="flex: 1; background: #e2e8f0; color: #1e293b; 
+        <button id="btn-mas-tarde" data-onclick="cerrarNotificacion()" style="flex: 1; background: #e2e8f0; color: #1e293b; 
                 border: none; border-radius: 6px; padding: 10px; cursor: pointer; font-weight: 500;">
             Más tarde
         </button>
@@ -256,13 +256,35 @@
             Descargando actualización...
         </p>
     </div>
+
+    <!-- C5: version minima soportada (la firma no garantiza frescura) -->
+    <div id="update-bloqueado" style="display: none; margin-top: 10px; background: #fef3c7;
+         border: 1px solid #f59e0b; border-radius: 6px; padding: 8px; font-size: 12px; color: #78350f;">
+    </div>
 </div>
 
 <div id="toast-container"></div>
 
 <!-- ============================================================
+     LOGIN REMOTO (C4) - solo visible si no hay sesión (no-SSO)
+     ============================================================ -->
+<div id="login-overlay" style="display:none;position:fixed;inset:0;z-index:20000;background:rgba(15,23,42,0.93);align-items:center;justify-content:center">
+  <div style="background:#ffffff;border-radius:12px;padding:28px;width:320px;box-shadow:0 20px 60px rgba(0,0,0,0.4);box-sizing:border-box">
+    <div style="font-size:18px;font-weight:700;margin-bottom:2px;color:#1e293b">SIDESYS ERP</div>
+    <div style="font-size:12px;color:#64748b;margin-bottom:16px">Iniciá sesión con tu usuario de Windows</div>
+    <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:4px">Usuario</label>
+    <input type="text" id="login-user" autocomplete="username" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;margin-bottom:12px;font-size:14px">
+    <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:4px">Contraseña</label>
+    <input type="password" id="login-pass" autocomplete="current-password" data-onkeydown="if(event.key==='Enter') enviarLoginRemoto()" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;margin-bottom:14px;font-size:14px">
+    <div id="login-msg" style="font-size:12px;color:#dc2626;min-height:16px;margin-bottom:8px"></div>
+    <button data-onclick="enviarLoginRemoto()" style="width:100%;padding:9px;background:#2563eb;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:14px">Ingresar</button>
+  </div>
+</div>
+
+<!-- ============================================================
      SCRIPTS (ORDEN CORRECTO PARA MÓDULOS ES6)
      ============================================================ -->
+<script src="/frontend/modules/shared/seguridad.js"></script>
 <script src="/frontend/modules/shared/paises.js"></script>
 <script src="/app.js"></script>
 
@@ -310,143 +332,7 @@
 <!-- ============================================================
      INICIALIZACIÓN (MODIFICADA - DASHBOARD ES EL PRIMERO)
      ============================================================ -->
-<script type="module">
-  // ✅ Importar directamente la función del Dashboard
-  import { cargarDashboard } from '/frontend/modules/dashboard.js';
-
-  // También importar otras funciones que puedan necesitarse
-  // (asumiendo que están en window, pero es mejor tenerlas aquí)
-  // Por ahora, usaremos las funciones globales existentes.
-
-  (async function() {
-    try {
-      toastInfo('Inicializando aplicación...', 'Cargando');
-      
-      // ✅ 0. CARGAR USUARIO ACTUAL (ANTES DE TODO)
-      await cargarUsuarioActual();
-      
-      // ✅ 1. Mostrar usuario en la interfaz
-      const userData = obtenerUsuarioActual();
-      if (userData) {
-        const nameEl = document.getElementById('user-indicator-name');
-        const roleEl = document.getElementById('user-indicator-role');
-        if (nameEl) nameEl.textContent = userData.nombre || userData.username || 'Usuario';
-        if (roleEl) {
-          if (userData.es_superadmin || userData.rol === 'superadmin') {
-            roleEl.textContent = 'SuperAdmin';
-            roleEl.style.display = 'inline';
-            roleEl.style.background = '#dc2626';
-          } else if (userData.rol) {
-            roleEl.textContent = userData.rol.charAt(0).toUpperCase() + userData.rol.slice(1);
-            roleEl.style.display = 'inline';
-          }
-        }
-      }
-      
-      // 2. Inicializar base
-      await inicializarBase('plataforma_rd', 'sidesys');
-      toastSuccess('Base: República Dominicana', 'Base inicializada');
-    
-      // ✅ 3. CARGAR DASHBOARD (EN LUGAR DE STOCK)
-      // Esperamos un poco para asegurar que el DOM esté listo
-      setTimeout(() => {
-        cargarDashboard();
-        toastSuccess('Dashboard cargado', '🏠 Inicio');
-      }, 200);
-      
-      const emptyState = document.getElementById('empty-state');
-      if (emptyState) emptyState.style.display = 'none';
-      
-      const moduleContent = document.getElementById('module-content');
-      if (moduleContent) moduleContent.style.display = 'block';
-            
-      // 4. Inicializar drawer (siempre)
-      setTimeout(() => {
-        if (typeof inicializarDrawer === 'function') {
-          inicializarDrawer();
-        }
-      }, 500);
-      
-      // 5. Inicializar CXP (en segundo plano)
-      setTimeout(() => {
-        try {
-          if (typeof window.inicializarCXP === 'function') {
-            window.inicializarCXP();
-            console.log('✅ CXP inicializado');
-          } else {
-            console.warn('⚠️ window.inicializarCXP no disponible, reintentando...');
-            setTimeout(() => {
-              if (typeof window.inicializarCXP === 'function') {
-                window.inicializarCXP();
-                console.log('✅ CXP inicializado (reintento)');
-              } else {
-                console.error('❌ CXP no disponible - ejecuta manualmente desde consola');
-              }
-            }, 1000);
-          }
-        } catch (e) {
-          console.warn('⚠️ Error inicializando CXP:', e.message);
-        }
-      }, 600);
-      
-      // 6. Inicializar Tooltips globales
-      setTimeout(() => {
-        try {
-          if (!window._tooltipsInicializados) {
-            import('/frontend/modules/shared/tooltip-component.js').then(module => {
-              if (module.initTooltips) {
-                module.initTooltips();
-                window._tooltipsInicializados = true;
-                console.log('✅ Tooltips globales inicializados desde index.html');
-              }
-              if (module.injectTooltipStyles) {
-                module.injectTooltipStyles();
-              }
-            }).catch(e => {
-              console.warn('⚠️ Error cargando tooltips:', e.message);
-            });
-          } else {
-            console.log('ℹ️ Tooltips ya inicializados, omitiendo desde index.html');
-          }
-        } catch (e) {
-          console.warn('⚠️ Error inicializando tooltips:', e.message);
-        }
-      }, 1200);
-           
-      toastSuccess('Aplicación lista', '✅ SIDESYS ERP');
-      
-      window.addEventListener('baseChanged', function(e) {
-        console.log('📌 Evento baseChanged recibido:', e.detail);
-        if (typeof validarBaseGT === 'function') {
-          setTimeout(() => validarBaseGT(), 200);
-        }
-      });
-      
-      // ✅ Escuchar evento de usuario cargado
-      window.addEventListener('userLoaded', function(e) {
-        const user = e.detail.user;
-        const nameEl = document.getElementById('user-indicator-name');
-        const roleEl = document.getElementById('user-indicator-role');
-        if (nameEl) nameEl.textContent = user.nombre || user.username || 'Usuario';
-        if (roleEl) {
-          if (user.es_superadmin || user.rol === 'superadmin') {
-            roleEl.textContent = 'SuperAdmin';
-            roleEl.style.display = 'inline';
-            roleEl.style.background = '#dc2626';
-          } else if (user.rol) {
-            roleEl.textContent = user.rol.charAt(0).toUpperCase() + user.rol.slice(1);
-            roleEl.style.display = 'inline';
-          }
-        }
-        console.log('👤 Usuario actualizado en UI:', user.username);
-      });
-      
-    } catch (error) {
-      toastError('Error al iniciar: ' + error.message, 'Error crítico');
-      console.error('Error al iniciar:', error);
-    }
-  })();
-</script>
+<script type="module" src="/frontend/modules/init.js"></script>
 
 </body>
 </html>

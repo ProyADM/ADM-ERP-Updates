@@ -14,15 +14,33 @@ from dotenv import load_dotenv
 # FUNCIONES PARA DESENCRIPTAR .env EN MEMORIA
 # ============================================================
 
+# Salt usado SOLO para leer archivos cifrados ANTES del cambio a
+# salt aleatorio por archivo (retrocompatibilidad). NO usar al cifrar.
+SALT_LEGACY = b'sidesys_erp_master_salt_2026'
+
+def _salt_desde_meta(meta):
+    """Obtiene el salt de los metadatos (base64). Si no está, usa legacy."""
+    salt_b64 = meta.get('salt')
+    if salt_b64:
+        try:
+            return base64.urlsafe_b64decode(salt_b64)
+        except Exception:
+            pass
+    return SALT_LEGACY
+
 def derivar_clave_maestra(password: str, salt: bytes = None) -> bytes:
     """
-    Deriva la clave de encriptación de la clave maestra
+    Deriva la clave de encriptación de la clave maestra.
+
+    salt=None conserva el salt fijo SOLO como compatibilidad de lectura
+    con archivos cifrados antes del cambio. Al cifrar archivos nuevos se
+    debe generar y persistir un salt aleatorio por archivo.
     """
     from cryptography.hazmat.primitives import hashes
     from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
     
     if salt is None:
-        salt = b'sidesys_erp_master_salt_2026'
+        salt = SALT_LEGACY
     
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
@@ -35,7 +53,10 @@ def derivar_clave_maestra(password: str, salt: bytes = None) -> bytes:
 
 def obtener_clave_maestra():
     """
-    Obtiene la clave maestra desde variable de entorno o archivo
+    Obtiene la clave maestra desde variable de entorno o archivo.
+
+    🔴 NO genera claves automáticamente ni usa fallback hardcodeado:
+    si no existe, lanza error con instrucciones.
     """
     # Primero intentar desde variable de entorno
     key = os.environ.get('SIDESYS_MASTER_KEY')
@@ -48,8 +69,12 @@ def obtener_clave_maestra():
         with open(key_file, 'r', encoding='utf-8') as f:
             return f.read().strip()
     
-    # Fallback: clave de desarrollo (NO USAR EN PRODUCCIÓN)
-    return 'ClaveMaestraSidesys2026!Segura'
+    # No hay clave → error claro (nunca un fallback hardcodeado)
+    raise RuntimeError(
+        "❌ No se encontró clave maestra.\n"
+        "   Define SIDESYS_MASTER_KEY en variables de entorno\n"
+        "   O crea un archivo .master.key con la clave de esta instalación."
+    )
 
 def cargar_env_encriptado(env_file):
     """
@@ -61,10 +86,8 @@ def cargar_env_encriptado(env_file):
         
         # Obtener clave maestra
         password = obtener_clave_maestra()
-        key = derivar_clave_maestra(password)
-        fernet = Fernet(key)
         
-        # Leer archivo encriptado
+        # Leer archivo encriptado (metadatos + datos)
         with open(env_file, 'rb') as f:
             # Leer metadatos
             meta_len = int.from_bytes(f.read(4), 'big')
@@ -73,6 +96,10 @@ def cargar_env_encriptado(env_file):
             
             # Leer datos encriptados
             encrypted_data = f.read()
+        
+        # Derivar clave con el salt del archivo (o legacy si es antiguo)
+        key = derivar_clave_maestra(password, _salt_desde_meta(meta))
+        fernet = Fernet(key)
         
         # Desencriptar
         decrypted = fernet.decrypt(encrypted_data)
@@ -173,6 +200,12 @@ SQL_USERNAME = get_required_env("SQL_USERNAME")
 SQL_PASSWORD = get_required_env("SQL_PASSWORD")
 SQL_SERVER_PLATAFORMA = get_env("SQL_SERVER_PLATAFORMA", SQL_SERVER)
 
+# C8: cifrado en tránsito hacia SQL Server (Encrypt). Default 'no' para no
+# romper drivers legacy ({SQL Server}) que no reconocen el keyword Encrypt.
+# Activar con SQL_ENCRYPT=yes (idealmente migrando a ODBC Driver 18 + cert de
+# CA real; con cert self-signed mantener TrustServerCertificate=yes).
+SQL_ENCRYPT_ACTIVO = get_env("SQL_ENCRYPT", "no").strip().lower() in ('1', 'yes', 'true', 'on')
+
 print(f"[INFO] SQL_SERVER = {SQL_SERVER}")
 print(f"[INFO] SQL_DATABASE = {SQL_DATABASE}")
 print(f"[INFO] SQL_USERNAME = {SQL_USERNAME}")
@@ -199,7 +232,11 @@ BASES_DISPONIBLES = {
         "user": get_env("RD_USER", SQL_USERNAME),
         "password": get_env("RD_PASS", SQL_PASSWORD),
         "division": 5,
-        "sucursal": 5
+        "sucursal": 5,
+        # sucursal empresa (MOST_SUCURSAL_EMP → SIST_SUEM): en RD la impresora es
+        # 5 pero la empresa es 4 (DOMINICANA); sin esto el ajuste/transferencia
+        # de stock rompe la FK SUEM_R05.
+        "sucursal_emp": 4
     },
     "plataforma_hn": {
         "label": "Honduras",

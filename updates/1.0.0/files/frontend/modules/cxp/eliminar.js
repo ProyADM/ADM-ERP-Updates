@@ -40,7 +40,7 @@ export async function eliminarFactura(index) {
                         <div style="font-size:32px;margin-bottom:8px;">✅</div>
                         <div style="font-weight:600;">Factura eliminada correctamente</div>
                         <div style="font-size:12px;color:#64748b;margin-top:4px;">
-                            CTACTE: ${res.ctacte_eliminado || 'N/A'} | Asiento: ${res.asiento_eliminado || 'N/A'}
+                            CTACTE: ${escapeHTML(res.ctacte_eliminado || 'N/A')} | Asiento: ${escapeHTML(res.asiento_eliminado || 'N/A')}
                         </div>
                     </div>
                 `;

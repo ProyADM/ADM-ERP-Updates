@@ -6,18 +6,6 @@
 // FUNCIÓN DE SANITIZACIÓN
 // ============================================================
 
-function escapeHTML(str) {
-    if (!str) return '';
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return String(str).replace(/[&<>"']/g, function(m) { return map[m]; });
-}
-
 function sanitizarValor(val) {
     if (val === undefined || val === null) return '';
     return escapeHTML(String(val));
@@ -42,7 +30,7 @@ function agregarFila(prefix, preset) {
       <td><select class="f-articulo">${articuloOptions}</select></td>
       <td><select class="f-deposito">${depositoOptions}</select></td>
       <td><input type="number" class="f-cantidad" value="1" min="0.0001" step="any"></td>
-      <td><button class="btn-remove" onclick="this.closest('tr').remove()">✕</button></td>`;
+      <td><button class="btn-remove" data-onclick="this.closest('tr').remove()">✕</button></td>`;
     if (preset) {
       tr.querySelector(".f-articulo").value = preset.articulo;
       tr.querySelector(".f-deposito").value = preset.deposito;
@@ -55,7 +43,7 @@ function agregarFila(prefix, preset) {
       <td><select class="f-deposito">${depositoOptions}</select></td>
       <td><input type="number" class="f-cantidad" value="1" min="0.0001" step="any"></td>
       <td class="td-partida"><select class="f-partida" style="display:none"></select></td>
-      <td><button class="btn-remove" onclick="this.closest('tr').remove(); actualizarColumnaPartida('as')">✕</button></td>`;
+      <td><button class="btn-remove" data-onclick="this.closest('tr').remove(); actualizarColumnaPartida('as')">✕</button></td>`;
     const artSel = tr.querySelector(".f-articulo");
     const depSel = tr.querySelector(".f-deposito");
     artSel.addEventListener("change", () => cargarPartidasFila(tr, artSel, depSel, "as"));
@@ -74,7 +62,7 @@ function agregarFila(prefix, preset) {
       <td><select class="f-destino">${depositoOptions}</select></td>
       <td><input type="number" class="f-cantidad" value="1" min="0.0001" step="any"></td>
       <td class="td-partida"><select class="f-partida" style="display:none"></select></td>
-      <td><button class="btn-remove" onclick="this.closest('tr').remove(); actualizarColumnaPartida('trm')">✕</button></td>`;
+      <td><button class="btn-remove" data-onclick="this.closest('tr').remove(); actualizarColumnaPartida('trm')">✕</button></td>`;
     const artSel = tr.querySelector(".f-articulo");
     const origenSel = tr.querySelector(".f-origen");
     artSel.addEventListener("change", () => cargarPartidasFila(tr, artSel, origenSel, "trm"));
@@ -86,6 +74,11 @@ function agregarFila(prefix, preset) {
     }
   }
   tbody.appendChild(tr);
+  // Convertir el selector de artículo de la fila (lote) en buscador por texto.
+  const artSelFila = tr.querySelector(".f-articulo");
+  if (artSelFila && typeof window.hacerSelectBuscable === 'function' && !artSelFila.dataset.buscable) {
+    window.hacerSelectBuscable(artSelFila);
+  }
 }
 
 async function cargarPartidasFila(tr, artSel, depSel, prefix) {
@@ -150,9 +143,13 @@ async function hacerAjusteIndividual(signo) {
     // ✅ CORREGIDO: Sanitizar mensaje
     const tipoSanitizado = sanitizarValor(data.tipo);
     const numeroSanitizado = sanitizarValor(data.numero_comprobante);
-    mostrarMsg(`Movimiento ${tipoSanitizado} #${numeroSanitizado} cargado correctamente.`, true);
+    mostrarResultadoSeccion(`${prefix}-resultados`, true, `Movimiento ${tipoSanitizado} #${numeroSanitizado} cargado correctamente.`);
+    const cantInput = document.getElementById(`${prefix}-cantidad`);
+    if (cantInput) cantInput.value = '';
+    const fechaInput = document.getElementById(`${prefix}-fecha`);
+    if (fechaInput) fechaInput.value = '';
   } else {
-    mostrarMsg(`Error: ${sanitizarValor(data.error)}`, false);
+    mostrarResultadoSeccion(`${prefix}-resultados`, false, `Error: ${data.error}`);
   }
 }
 
@@ -200,17 +197,16 @@ async function cargarLote(prefix, signo) {
     if (partidaInput && partidaInput.value) fila.partida = parseInt(partidaInput.value);
     filas.push(fila);
   });
-  if (filas.length === 0) { mostrarMsg("No hay filas para cargar.", false); return; }
+  if (filas.length === 0) { mostrarResultadoSeccion(`${prefix}-resultados`, false, "No hay filas para cargar."); return; }
   const resp = await fetch(`${API}/ajuste/lote`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ signo, filas }) });
   const data = await resp.json();
   if (resp.ok) {
     const tipoSanitizado = sanitizarValor(data.tipo);
     const numeroSanitizado = sanitizarValor(data.numero_comprobante);
     const cantidadSanitizada = sanitizarValor(data.cantidad_renglones);
-    mostrarMsg(`Comprobante ${tipoSanitizado} #${numeroSanitizado} cargado con ${cantidadSanitizada} renglones.`, true);
-    document.getElementById(`${prefix}-resultados`).innerHTML = "";
+    mostrarResultadoSeccion(`${prefix}-resultados`, true, `Comprobante ${tipoSanitizado} #${numeroSanitizado} cargado con ${cantidadSanitizada} renglones.`);
   } else {
-    mostrarMsg(`Error: ${sanitizarValor(data.error)}`, false);
+    mostrarResultadoSeccion(`${prefix}-resultados`, false, `Error: ${data.error}`);
   }
 }
 

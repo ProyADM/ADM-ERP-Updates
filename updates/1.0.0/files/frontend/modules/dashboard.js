@@ -111,12 +111,4 @@ function formatFecha(fechaStr) {
     return `📅 ${d.toLocaleDateString()} (futura)`;
 }
 
-function escapeHTML(str) {
-    if (!str) return '';
-    return String(str).replace(/[&<>"']/g, function(m) {
-        const map = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'};
-        return map[m];
-    });
-}
-
 window.cargarDashboard = cargarDashboard;

@@ -137,8 +137,15 @@ class PermisosSistema:
     
     @classmethod
     def obtener_todos_permisos(cls):
-        """Obtiene todos los permisos del sistema"""
-        return [getattr(cls, p) for p in dir(cls) if not p.startswith('_')]
+        """Obtiene todos los permisos del sistema (solo constantes str).
+
+        Fix C4: el dir(cls) anterior incluía los métodos (@classmethod)
+        como si fueran permisos -> rompía la serialización de listas de
+        permisos (Object of type method is not JSON serializable)."""
+        return [
+            getattr(cls, p) for p in dir(cls)
+            if not p.startswith('_') and isinstance(getattr(cls, p), str)
+        ]
     
     @classmethod
     def obtener_permisos_por_nivel(cls, nivel):

@@ -12,18 +12,6 @@ import { initTooltips } from '../shared/tooltip-component.js';
 // FUNCIÓN DE SANITIZACIÓN
 // ============================================================
 
-function escapeHTML(str) {
-    if (!str) return '';
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return String(str).replace(/[&<>"']/g, function(m) { return map[m]; });
-}
-
 function sanitizarValor(val) {
     if (val === undefined || val === null) return '';
     return escapeHTML(String(val));
@@ -155,7 +143,7 @@ export async function renderFacturas(facturas, ccosParam) {
                     </div>
                     <div class="factura-field">
                         <span class="lbl">Moneda <span class="tag-auto">auto</span></span>
-                        <select id="f${i}_moneda" onchange="actualizarCotizacion(${i})" data-tooltip="monedaFacturaSelect">
+                        <select id="f${i}_moneda" data-onchange="actualizarCotizacion(${i})" data-tooltip="monedaFacturaSelect">
                             <option value="PS" ${moneda==='PS'?'selected':''}>PS · Quetzales</option>
                             <option value="DL" ${moneda==='DL'?'selected':''}>DL · Dólares</option>
                         </select>
@@ -169,7 +157,7 @@ export async function renderFacturas(facturas, ccosParam) {
                 <div class="factura-grid">
                     <div class="factura-field">
                         <span class="lbl">Total <span class="tag-auto">auto</span></span>
-                        <input type="number" id="f${i}_total" value="${total}" step="0.01" oninput="recalcFact(${i})" data-tooltip="totalFacturaInput">
+                        <input type="number" id="f${i}_total" value="${total}" step="0.01" data-oninput="recalcFact(${i})" data-tooltip="totalFacturaInput">
                     </div>
                     <div class="factura-field">
                         <span class="lbl">Bruto (sin IVA)</span>
@@ -191,14 +179,14 @@ export async function renderFacturas(facturas, ccosParam) {
                     </div>
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
                         <span class="lbl">Renglones contables de gasto</span>
-                        <button onclick="agregarRenglon(${i})" style="font-size:11px;padding:2px 10px;border-radius:4px;border:1px solid var(--border);background:var(--bg-card);cursor:pointer" data-tooltip="agregarRenglonBtn">+ Agregar</button>
+                        <button data-onclick="agregarRenglon(${i})" style="font-size:11px;padding:2px 10px;border-radius:4px;border:1px solid var(--border);background:var(--bg-card);cursor:pointer" data-tooltip="agregarRenglonBtn" data-perm="cxp.crear">+ Agregar</button>
                     </div>
                     <div id="f${i}_renglones"></div>
                 </div>
 
                 <div style="margin-top:10px;border-top:0.5px solid var(--border);padding-top:10px">
                     <div style="display:flex;align-items:center;gap:8px;margin-bottom:0">
-                        <input type="checkbox" id="f${i}_esev" onchange="toggleEventualFact(${i})" ${esEventual} data-tooltip="proveedorEventual">
+                        <input type="checkbox" id="f${i}_esev" data-onchange="toggleEventualFact(${i})" ${esEventual} data-tooltip="proveedorEventual">
                         <label for="f${i}_esev" style="font-size:12px;cursor:pointer;color:var(--text)">Proveedor eventual</label>
                         <div class="ac-wrap" id="f${i}_provwrap" style="flex:1;${esEventual?'':'display:none'}">
                             <input type="text" id="f${i}_provsearch" placeholder="Proveedor bajo el que se carga…" style="width:100%" data-tooltip="providHidden">
@@ -223,7 +211,7 @@ export async function renderFacturas(facturas, ccosParam) {
                 </div>
 
                 <div style="margin-top:12px;padding-top:10px;border-top:0.5px solid var(--border);display:flex;justify-content:flex-end">
-                    <button onclick="eliminarFactura(${i})" class="btn btn-danger btn-sm" style="background:#dc2626;color:white;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:6px" data-tooltip="eliminarFactura">
+                    <button data-onclick="eliminarFactura(${i})" class="btn btn-danger btn-sm" style="background:#dc2626;color:white;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:6px" data-tooltip="eliminarFactura" data-perm="cxp.eliminar">
                         🗑️ Eliminar factura
                     </button>
                 </div>

@@ -13,10 +13,13 @@ from modules.shared.database import run_sql, run_sql_db, _sql_literal
 from modules.shared.utils import to_base64
 from .parser import parse_fel_page, extraer_texto_pagina, ocr_image_bytes
 from cuentas import CUENTAS, NIT_CUENTA_FIJA
+from modules.shared.decorators import requiere_permiso, requiere_superadmin
+from modules.shared.permisos import PermisosSistema
 import pdfplumber
 import openpyxl
 from datetime import date
 import logging
+import math
 
 logger = logging.getLogger(__name__)
 
@@ -49,10 +52,67 @@ def asegurar_division(division):
         return False
 
 # ============================================================
+# VALIDACION DE ENTRADA CXP (anti-inyeccion SQL)
+# ============================================================
+
+class ErrorValidacion(Exception):
+    """Error controlado de validacion de entrada (se devuelve como HTTP 400)."""
+    pass
+
+
+def _validar_fecha_cxp(valor, campo, obligatoria=False):
+    if valor in (None, ''):
+        if obligatoria:
+            raise ErrorValidacion("El campo '" + campo + "' es obligatorio (formato AAAA-MM-DD)")
+        return None
+    try:
+        return date.fromisoformat(str(valor).strip()).isoformat()
+    except (TypeError, ValueError):
+        raise ErrorValidacion("El campo '" + campo + "' debe tener formato AAAA-MM-DD")
+
+
+def _validar_entero_cxp(valor, campo, obligatoria=False):
+    if valor in (None, ''):
+        if obligatoria:
+            raise ErrorValidacion("El campo '" + campo + "' es obligatorio")
+        return None
+    try:
+        return int(valor)
+    except (TypeError, ValueError):
+        raise ErrorValidacion("El campo '" + campo + "' debe ser un numero entero")
+
+
+def _validar_importe_cxp(valor, campo, obligatoria=False, default=0):
+    if valor in (None, ''):
+        if obligatoria:
+            raise ErrorValidacion("El campo '" + campo + "' es obligatorio")
+        return default
+    try:
+        f = float(valor)
+    except (TypeError, ValueError):
+        raise ErrorValidacion("El campo '" + campo + "' debe ser un numero")
+    if not math.isfinite(f):
+        raise ErrorValidacion("El campo '" + campo + "' debe ser un numero finito")
+    return f
+
+
+def _validar_codigo_cxp(valor, campo, patron, default=None, obligatoria=False):
+    if valor in (None, ''):
+        if obligatoria:
+            raise ErrorValidacion("El campo '" + campo + "' es obligatorio")
+        return default
+    v = str(valor).strip().upper()
+    if not re.fullmatch(patron, v):
+        raise ErrorValidacion("El campo '" + campo + "' no es valido")
+    return v
+
+
+# ============================================================
 # RUTAS CXP - PROVEEDORES Y CONDICIONES
 # ============================================================
 
 @cxp_bp.route('/proveedores')
+@requiere_permiso(PermisosSistema.CXP_VER)
 def proveedores():
     try:
         q = request.args.get("q", "").replace("'", "''")
@@ -69,6 +129,7 @@ def proveedores():
         return jsonify([])
 
 @cxp_bp.route('/condiciones_pago')
+@requiere_permiso(PermisosSistema.CXP_VER)
 def condiciones_pago():
     try:
         rows = run_sql("""
@@ -81,6 +142,7 @@ def condiciones_pago():
         return jsonify([])
 
 @cxp_bp.route('/cuentas')
+@requiere_permiso(PermisosSistema.CXP_VER)
 def get_cuentas():
     try:
         from cuentas import CUENTAS
@@ -98,6 +160,7 @@ def get_cuentas():
 # ============================================================
 
 @cxp_bp.route('/centros_costo')
+@requiere_permiso(PermisosSistema.CXP_VER)
 def get_centros_costo():
     """Lista de centros de costo desde CONT_IMAE"""
     try:
@@ -125,10 +188,11 @@ def get_centros_costo():
         return jsonify([])
 
 @cxp_bp.route('/cotizacion')
+@requiere_permiso(PermisosSistema.CXP_VER)
 def get_cotizacion():
     try:
         moneda = request.args.get('moneda', 'DL')
-        fecha = request.args.get('fecha', date.today().isoformat())
+        fecha = _validar_fecha_cxp(request.args.get('fecha'), 'fecha') or date.today().isoformat()
         
         if moneda == 'PS':
             return jsonify({"cotizacion": 1.0})
@@ -142,11 +206,14 @@ def get_cotizacion():
         
         cotizacion = float(str(rows[0]['c']).replace(',', '.')) if rows and rows[0].get('c') else 7.61982
         return jsonify({"cotizacion": cotizacion})
+    except ErrorValidacion as e:
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
         logger.error(f"Error en /cotizacion: {e}")
         return jsonify({"cotizacion": 7.61982})
 
 @cxp_bp.route('/parsear_pdf', methods=["POST"])
+@requiere_permiso(PermisosSistema.CXP_IMPORTAR)
 def parsear_pdf():
     try:
         data = request.json
@@ -251,29 +318,30 @@ def parsear_pdf():
 # ============================================================
 
 @cxp_bp.route('/cargar_factura', methods=["POST"])
+@requiere_permiso(PermisosSistema.CXP_CREAR)
 def cargar_factura():
     try:
         d = request.json
         if not d:
             return jsonify({"ok": False, "error": "Datos requeridos"}), 400
             
-        division = int(d.get("division", 7))
+        division = _validar_entero_cxp(d.get("division", 7), "division", obligatoria=True)
         
         asegurar_division(division)
         
-        proveedor = int(d["proveedor_id"])
-        fecha = d["fecha"]
-        ref_prov = str(d["ref_prov"])[:15]
+        proveedor = _validar_entero_cxp(d.get("proveedor_id"), "proveedor_id", obligatoria=True)
+        fecha = _validar_fecha_cxp(d.get("fecha"), "fecha", obligatoria=True)
+        ref_prov = str(d.get("ref_prov", "")).replace("'", "''")[:15]
         descripcion = d.get("descripcion", "").replace("'", "''")[:100]
-        cond_pago = d.get("cond_pago", "00")
-        moneda = d.get("moneda", "PS")
-        tipo_comp = d.get("tipo_comp", "FCP")
-        imp_bruto = float(d["imp_bruto"])
-        imp_iva = float(d.get("imp_iva", 0))
-        tasa_iva = float(d.get("tasa_iva", 12))
+        cond_pago = _validar_codigo_cxp(d.get("cond_pago", "00"), "cond_pago", r'^[A-Z0-9_\-]{1,8}$', default="00")
+        moneda = _validar_codigo_cxp(d.get("moneda", "PS"), "moneda", r'^[A-Z]{2,4}$', default="PS")
+        tipo_comp = _validar_codigo_cxp(d.get("tipo_comp", "FCP"), "tipo_comp", r'^[A-Z0-9]{1,6}$', default="FCP")
+        imp_bruto = _validar_importe_cxp(d.get("imp_bruto"), "imp_bruto", obligatoria=True)
+        imp_iva = _validar_importe_cxp(d.get("imp_iva", 0), "imp_iva")
+        tasa_iva = _validar_importe_cxp(d.get("tasa_iva", 12), "tasa_iva")
         imp_total = round(imp_bruto + imp_iva, 2)
-        fecha_vto = d.get("fecha_vto", fecha)
-        cotizacion = float(d.get("cotizacion", 1))
+        fecha_vto = _validar_fecha_cxp(d.get("fecha_vto"), "fecha_vto") or fecha
+        cotizacion = _validar_importe_cxp(d.get("cotizacion", 1), "cotizacion", default=1)
         renglones = d.get("renglones", [])
         eventual = d.get("eventual")
         
@@ -354,6 +422,9 @@ def cargar_factura():
             else:
                 cuenta_prov = "210101001"
         
+        if cuenta_prov not in (None, ''):
+            cuenta_prov = _validar_codigo_cxp(cuenta_prov, "cuenta_prov", r'^[0-9A-Z\-\.]{1,20}$')
+
         nombre_prov_esc = d.get("proveedor_nombre", "").replace("'", "''")[:60]
         
         if not renglones:
@@ -538,6 +609,8 @@ def cargar_factura():
             "nro_asiento": nro_asi_result,
             "tipo": tipo_comp
         })
+    except ErrorValidacion as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
     except ValueError as e:
         logger.error(f"Error de valor en /cargar_factura: {e}")
         return jsonify({"ok": False, "error": f"Error de validación: {str(e)}"}), 400
@@ -550,15 +623,16 @@ def cargar_factura():
 # ============================================================
 
 @cxp_bp.route('/eliminar_factura', methods=["POST"])
+@requiere_permiso(PermisosSistema.CXP_ELIMINAR)
 def eliminar_factura():
     try:
         d = request.json
         if not d:
             return jsonify({"ok": False, "error": "Datos requeridos"}), 400
             
-        tipo_comp = d.get("tipo_comp", "FCP")
-        numero_comp = int(d.get("numero_comp"))
-        division = int(d.get("division", 7))
+        tipo_comp = _validar_codigo_cxp(d.get("tipo_comp", "FCP"), "tipo_comp", r'^[A-Z0-9]{1,6}$', default="FCP")
+        numero_comp = _validar_entero_cxp(d.get("numero_comp"), "numero_comp", obligatoria=True)
+        division = _validar_entero_cxp(d.get("division", 7), "division", obligatoria=True)
         
         rows_ctacte = run_sql(f"""
             SELECT RCCP_CTACTE_CTEP as ctacte
@@ -666,6 +740,8 @@ def eliminar_factura():
             "asiento_eliminado": asiento,
             "resultado": rows[0]['Resultado'] if rows else "OK"
         })
+    except ErrorValidacion as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
     except ValueError as e:
         return jsonify({"ok": False, "error": f"Error de validación: {str(e)}"}), 400
     except Exception as e:
@@ -677,6 +753,7 @@ def eliminar_factura():
 # ============================================================
 
 @cxp_bp.route('/debug_pdf', methods=["POST"])
+@requiere_superadmin
 def debug_pdf():
     try:
         data = request.json
@@ -704,6 +781,7 @@ def debug_pdf():
 # ============================================================
 
 @cxp_bp.route('/factura_prueba', methods=["GET"])
+@requiere_permiso(PermisosSistema.CXP_VER)
 def factura_prueba():
     try:
         return jsonify({

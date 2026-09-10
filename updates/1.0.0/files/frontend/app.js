@@ -33,18 +33,6 @@ function sanitizarAtributo(str) {
     return String(str).replace(/[^a-zA-Z0-9\-_]/g, '');
 }
 
-function escapeHTML(str) {
-    if (!str) return '';
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return String(str).replace(/[&<>"']/g, function(m) { return map[m]; });
-}
-
 // ============================================================
 // FETCH CON HEADERS DE BASE
 // ============================================================
@@ -63,6 +51,20 @@ window.fetch = function (url, options = {}) {
 // ============================================================
 function cambiarModulo(modulo) {
   console.log(`📂 Cambiando a módulo: ${modulo}`);
+  // Si ya estamos en el módulo y su template ya está montado, NO re-renderizar:
+  // solo refrescar los estados visuales. Sin esto, tocar el tab del módulo
+  // activo (p.ej. para abrir el menú) reemplazaba el template y "recargaba" la
+  // vista actual por detrás del drawer (perdía sección/reporte/scroll).
+  if (modulo === moduloActual && typeof templateInicializado !== 'undefined' && templateInicializado[modulo]) {
+    document.querySelectorAll('.module-tab').forEach(t => {
+      t.classList.toggle('active', t.dataset.module === modulo);
+    });
+    document.querySelectorAll('.drawer-module').forEach(m => {
+      m.style.display = m.dataset.module === modulo ? '' : 'none';
+    });
+    console.log(`ℹ️ Ya estás en ${modulo} (template montado) — sin re-render`);
+    return;
+  }
   moduloActual = modulo;
   document.querySelectorAll('.module-tab').forEach(t => {
     t.classList.toggle('active', t.dataset.module === modulo);
@@ -266,7 +268,7 @@ function actualizarIndicadorBase() {
       const codigo = escapeHTML(b.codigo);
       const label = escapeHTML(b.label);
       const sigla = window.siglaBase(codigo) || label;
-      return `<button class="base-opt${b.codigo === baseActiva ? ' active' : ''}" onclick="seleccionarBase('${codigo}')">
+      return `<button class="base-opt${b.codigo === baseActiva ? ' active' : ''}" data-onclick="seleccionarBase('${codigo}')">
         ${sigla}
         <span class="check">✓</span>
       </button>`;
@@ -285,7 +287,7 @@ function actualizarIndicadorBase() {
         socDropdown.innerHTML = baseInfo.sociedades.map(s => {
           const codigo = escapeHTML(s.codigo);
           const label = escapeHTML(s.label);
-          return `<button class="base-opt${s.codigo === sociedadActiva ? ' active' : ''}" onclick="seleccionarSociedad('${codigo}')">
+          return `<button class="base-opt${s.codigo === sociedadActiva ? ' active' : ''}" data-onclick="seleccionarSociedad('${codigo}')">
             ${label}
             <span class="check">✓</span>
           </button>`;
@@ -350,12 +352,15 @@ async function seleccionarSociedad(codigo) {
 // STOCK - SELECTS
 // ============================================================
 async function cargarSelectsStock() {
-  if (stockSelectsCargados) { console.log('ℹ️ Selects de stock ya cargados, omitiendo...'); return; }
+  // Semántica: "asegurar cargados Y aplicados al DOM". Aunque las caches ya
+  // existan (arranque), se re-aplican las opciones porque el template del
+  // módulo Stock puede haberse montado después (bug de combos vacíos).
+  if (stockSelectsCargados) { console.log('ℹ️ Selects de stock ya cargados, omitiendo...'); aplicarSelectsStockDOM(); return; }
   if (cargandoSelects) {
     console.log('⏳ Selects de stock cargándose, esperando...');
     let espera = 0;
     while (cargandoSelects && espera < 50) { await new Promise(r => setTimeout(r, 100)); espera++; }
-    if (stockSelectsCargados) { console.log('✅ Selects cargados durante la espera'); return; }
+    if (stockSelectsCargados) { console.log('✅ Selects cargados durante la espera'); aplicarSelectsStockDOM(); return; }
   }
   cargandoSelects = true;
   try {
@@ -376,59 +381,7 @@ async function cargarSelectsStock() {
     categoriasCache = await fetch(`${API}/categorias`).then(r => r.json());
     console.log(`✅ ${categoriasCache.length} categorías cargadas`);
 
-    const artOptions = articulosCache.map(a => {
-      const id = escapeHTML(a.id); const codigo = escapeHTML(a.codigo); const nombre = escapeHTML(a.nombre); const partidas = escapeHTML(a.con_partidas);
-      return `<option value="${id}" data-partidas="${partidas}">${codigo} - ${nombre}</option>`;
-    }).join("");
-    const depOptions = depositosCache.map(d => {
-      const id = escapeHTML(d.id); const nombre = escapeHTML(d.nombre);
-      return `<option value="${id}">${id} - ${nombre}</option>`;
-    }).join("");
-    const catOptions = categoriasCache.map(c => {
-      const codigo = escapeHTML(c.codigo); const nombre = escapeHTML(c.nombre); const defaultVal = escapeHTML(c.con_partidas_default);
-      return `<option value="${codigo}" data-partidas-default="${defaultVal}">${nombre}</option>`;
-    }).join("");
-
-    const aeArticulo = document.getElementById("ae-articulo");
-    if (aeArticulo) aeArticulo.innerHTML = artOptions;
-    const asArticulo = document.getElementById("as-articulo");
-    if (asArticulo) asArticulo.innerHTML = artOptions;
-    const trArticulo = document.getElementById("tr-articulo");
-    if (trArticulo) trArticulo.innerHTML = artOptions;
-    ["ae-deposito", "as-deposito", "tr-origen", "tr-destino"].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.innerHTML = depOptions;
-    });
-    const stkDep = document.getElementById("stk-deposito");
-    if (stkDep) stkDep.innerHTML = `<option value="">Todos</option>${depOptions}`;
-    const artCat = document.getElementById("art-categoria");
-    if (artCat) artCat.innerHTML = catOptions;
-    const artModCat = document.getElementById("art-mod-categoria");
-    if (artModCat) artModCat.innerHTML = catOptions;
-    const artModBuscar = document.getElementById("art-mod-buscar");
-    if (artModBuscar) {
-      artModBuscar.innerHTML = `<option value="">Elegí un artículo...</option>` + articulosCache.map(a => {
-        const id = escapeHTML(a.id); const codigo = escapeHTML(a.codigo); const nombre = escapeHTML(a.nombre);
-        return `<option value="${id}">${codigo} - ${nombre}</option>`;
-      }).join("");
-    }
-    const depModBuscar = document.getElementById("dep-mod-buscar");
-    if (depModBuscar) {
-      depModBuscar.innerHTML = `<option value="">Elegí un depósito...</option>` + depositosCache.map(d => {
-        const id = escapeHTML(d.id); const nombre = escapeHTML(d.nombre);
-        return `<option value="${id}">${id} - ${nombre}</option>`;
-      }).join("");
-    }
-    const aeGrid = document.getElementById("ae-grid");
-    const asGrid = document.getElementById("as-grid");
-    const trmGrid = document.getElementById("trm-grid");
-    if (aeGrid && typeof agregarFila === 'function') { agregarFila("ae"); }
-    if (asGrid && typeof agregarFila === 'function') { agregarFila("as"); }
-    if (trmGrid && typeof agregarFila === 'function') { agregarFila("trm"); }
-    const artCategoria = document.getElementById("art-categoria");
-    if (artCategoria && typeof aplicarDefaultPartidas === 'function') { aplicarDefaultPartidas(); }
-    const seCompra = document.getElementById("art-se-compra");
-    if (seCompra && typeof actualizarCamposOrigen === 'function') { actualizarCamposOrigen(); }
+    aplicarSelectsStockDOM();
     stockSelectsCargados = true;
     console.log('✅ Selects de stock cargados correctamente');
   } catch (e) {
@@ -436,6 +389,83 @@ async function cargarSelectsStock() {
     const msg = document.getElementById('msg');
     if (msg) { msg.innerHTML = `<div class="msg error">⚠️ Error al cargar datos de stock: ${escapeHTML(e.message)}</div>`; }
   } finally { cargandoSelects = false; }
+}
+
+// ============================================================
+// STOCK - SELECTS: APLICAR OPCIONES AL DOM (idempotente)
+// ============================================================
+function aplicarSelectsStockDOM() {
+  // cargarSelectsStock() corre al iniciar la app cuando el template de Stock
+  // aún no está en el DOM (solo el dashboard está montado). Los <select> de
+  // Stock se crean al montar el módulo, y el guard (stockSelectsCargados)
+  // impedía volver a aplicar las opciones → quedaban vacíos (combos
+  // "Elegí un artículo/depósito..."). Esta función re-aplica las caches a los
+  // selects presentes. Es idempotente: no duplica filas de grillas.
+  if (!articulosCache.length && !depositosCache.length && !categoriasCache.length) {
+    console.log('ℹ️ aplicarSelectsStockDOM: caches vacías, omitiendo');
+    return;
+  }
+  const artOptions = articulosCache.map(a => {
+    const id = escapeHTML(a.id); const codigo = escapeHTML(a.codigo); const nombre = escapeHTML(a.nombre); const partidas = escapeHTML(a.con_partidas);
+    return `<option value="${id}" data-partidas="${partidas}">${codigo} - ${nombre}</option>`;
+  }).join("");
+  const depOptions = depositosCache.map(d => {
+    const id = escapeHTML(d.id); const nombre = escapeHTML(d.nombre);
+    return `<option value="${id}">${id} - ${nombre}</option>`;
+  }).join("");
+  const catOptions = categoriasCache.map(c => {
+    const codigo = escapeHTML(c.codigo); const nombre = escapeHTML(c.nombre); const defaultVal = escapeHTML(c.con_partidas_default);
+    return `<option value="${codigo}" data-partidas-default="${defaultVal}">${nombre}</option>`;
+  }).join("");
+
+  const aeArticulo = document.getElementById("ae-articulo");
+  if (aeArticulo) aeArticulo.innerHTML = artOptions;
+  const asArticulo = document.getElementById("as-articulo");
+  if (asArticulo) asArticulo.innerHTML = artOptions;
+  const trArticulo = document.getElementById("tr-articulo");
+  if (trArticulo) trArticulo.innerHTML = artOptions;
+  ["ae-deposito", "as-deposito", "tr-origen", "tr-destino"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = depOptions;
+  });
+  const stkDep = document.getElementById("stk-deposito");
+  if (stkDep) stkDep.innerHTML = `<option value="">Todos</option>${depOptions}`;
+  const artCat = document.getElementById("art-categoria");
+  if (artCat) artCat.innerHTML = catOptions;
+  const artModCat = document.getElementById("art-mod-categoria");
+  if (artModCat) artModCat.innerHTML = catOptions;
+  const artModBuscar = document.getElementById("art-mod-buscar");
+  if (artModBuscar) {
+    artModBuscar.innerHTML = `<option value="">Elegí un artículo...</option>` + articulosCache.map(a => {
+      const id = escapeHTML(a.id); const codigo = escapeHTML(a.codigo); const nombre = escapeHTML(a.nombre);
+      return `<option value="${id}">${codigo} - ${nombre}</option>`;
+    }).join("");
+  }
+  const depModBuscar = document.getElementById("dep-mod-buscar");
+  if (depModBuscar) {
+    depModBuscar.innerHTML = `<option value="">Elegí un depósito...</option>` + depositosCache.map(d => {
+      const id = escapeHTML(d.id); const nombre = escapeHTML(d.nombre);
+      return `<option value="${id}">${id} - ${nombre}</option>`;
+    }).join("");
+  }
+  // Primera fila de las grillas de ajuste/transferencia (solo si vacías,
+  // para que la re-aplicación no duplique filas).
+  ["ae", "as", "trm"].forEach(prefix => {
+    const gridId = prefix === "trm" ? "trm-grid" : prefix + "-grid";
+    const tbody = document.querySelector(`#${gridId} tbody`);
+    if (tbody && tbody.rows.length === 0 && typeof agregarFila === 'function') {
+      agregarFila(prefix);
+    }
+  });
+  const artCategoria = document.getElementById("art-categoria");
+  if (artCategoria && typeof aplicarDefaultPartidas === 'function') { aplicarDefaultPartidas(); }
+  const seCompra = document.getElementById("art-se-compra");
+  if (seCompra && typeof actualizarCamposOrigen === 'function') { actualizarCamposOrigen(); }
+  // Convertir los desplegables de artículos en buscadores por texto (escribiendo).
+  if (typeof window.aplicarBuscadoresStock === 'function') {
+    window.aplicarBuscadoresStock();
+  }
+  console.log('✅ Selects de stock aplicados al DOM');
 }
 
 // ============================================================
@@ -477,7 +507,7 @@ function showToast(message, type = 'info', title = '', duration = 4000) {
       <div class="toast-title">${escapeHTML(title || titles[type] || 'Información')}</div>
       <div class="toast-message">${escapeHTML(message)}</div>
     </div>
-    <button class="toast-close" onclick="this.closest('.toast').remove()">✕</button>
+    <button class="toast-close" data-onclick="this.closest('.toast').remove()">✕</button>
   `;
   container.appendChild(toast);
   setTimeout(() => {
@@ -527,25 +557,64 @@ function compararVersiones(v1, v2) {
 }
 
 // ============================================================
-// NOTIFICACIÓN DE ACTUALIZACIÓN (CORREGIDA: usa /api/version)
+// NOTIFICACIÓN DE ACTUALIZACIÓN + AUTO-REINICIO
+// ============================================================
+// Flujo: pop-up -> el usuario confirma -> el backend descarga el diff firmado y
+// aplica -> el backend relanza la app (proceso desprendido) -> acá se espera a
+// que el servidor vuelva y se recarga con la versión nueva.
 // ============================================================
 let notificacionVisible = false;
+let actualizacionEnCurso = false;
+
+// "Más tarde" silencia esa versión SOLO durante esta sesión de navegador: al
+// recargar (o al reiniciar la app) el aviso vuelve a aparecer.
+const UPDATE_SNOOZE_KEY = 'admUpdateSnooze';
+
+function _leerSnooze() {
+    try {
+        const raw = sessionStorage.getItem(UPDATE_SNOOZE_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+}
+
+function _guardarSnooze(version) {
+    try {
+        sessionStorage.setItem(UPDATE_SNOOZE_KEY, JSON.stringify({
+            version: version,
+            hasta: Date.now() + (8 * 60 * 60 * 1000)
+        }));
+    } catch (e) {}
+}
+
+function _snoozeActivo(version) {
+    const s = _leerSnooze();
+    if (!s || s.version !== version) return false;
+    return Date.now() < (s.hasta || 0);
+}
 
 function verificarNotificacion() {
+    // Sin sesión (pantalla de login remoto) no consultar actualizaciones.
+    try {
+        const u = obtenerUsuarioActual();
+        if (!u) return;
+    } catch (e) { return; }
+    if (actualizacionEnCurso) return;
     console.log('🔍 Verificando notificaciones de actualización...');
-    // Obtener la versión real desde el backend
     fetch('/api/version')
         .then(r => r.json())
         .then(versionData => {
-            const versionInstalada = versionData.version; // viene de version.txt o APP_VERSION
-            
+            const versionInstalada = versionData.version; // version.txt o VERSION
             fetch('/api/update/notification')
                 .then(response => response.json())
                 .then(data => {
                     if (data.has_update) {
                         const versionRemota = data.version || '0.0.0';
                         if (compararVersiones(versionInstalada, versionRemota) < 0) {
-                            console.log('📢 Nueva versión disponible:', data.version);
+                            if (_snoozeActivo(versionRemota)) {
+                                console.log('😴 Versión silenciada por "Más tarde":', versionRemota);
+                                return;
+                            }
+                            console.log('📢 Nueva versión disponible:', versionRemota);
                             mostrarNotificacion(data);
                         } else {
                             console.log('✅ Ya tienes la versión más reciente instalada.');
@@ -560,7 +629,7 @@ function verificarNotificacion() {
 }
 
 function mostrarNotificacion(data) {
-    if (notificacionVisible) return;
+    if (notificacionVisible || actualizacionEnCurso) return;
     document.getElementById('update-version').textContent = data.version || 'N/A';
     document.getElementById('update-date').textContent = data.release_date || 'N/A';
     const ul = document.getElementById('update-changelog');
@@ -576,23 +645,45 @@ function mostrarNotificacion(data) {
         li.textContent = 'Actualización disponible';
         ul.appendChild(li);
     }
+    // C5 - aviso informativo de frescura (no impide instalar)
+    const avisoBox = document.getElementById('update-bloqueado');
+    if (avisoBox) {
+        if (data.aviso) {
+            avisoBox.textContent = '⚠️ ' + data.aviso;
+            avisoBox.style.display = 'block';
+        } else {
+            avisoBox.style.display = 'none';
+        }
+    }
     document.getElementById('update-notification').style.display = 'block';
     notificacionVisible = true;
 }
 
 function cerrarNotificacion() {
+    const v = document.getElementById('update-version').textContent;
+    if (v && v !== '-' && !actualizacionEnCurso) {
+        _guardarSnooze(v);
+        console.log('😴 Actualización silenciada hasta recargar:', v);
+    }
     document.getElementById('update-notification').style.display = 'none';
     notificacionVisible = false;
 }
 
+// El aviso de frescura (C5) viaja como campo `aviso` del update y se muestra
+// dentro del propio pop-up: no bloquea la instalación, que es la vía normal
+// para llegar a la versión nueva.
+
 function instalarActualizacion() {
+    if (actualizacionEnCurso) return;
     console.log('🔄 Iniciando actualización...');
+    actualizacionEnCurso = true;
     document.getElementById('update-progress').style.display = 'block';
-    const btnActualizar = document.querySelector('#update-notification button:first-child');
-    const btnMasTarde = document.querySelector('#update-notification button:last-child');
+    const btnActualizar = document.getElementById('btn-actualizar-ahora');
+    const btnMasTarde = document.getElementById('btn-mas-tarde');
     if (btnActualizar) btnActualizar.disabled = true;
     if (btnMasTarde) btnMasTarde.disabled = true;
-    actualizarProgreso(10, 'Iniciando actualización...');
+    actualizarProgreso(5, 'Iniciando actualización...');
+
     fetch('/api/update/install', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
@@ -600,15 +691,17 @@ function instalarActualizacion() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            actualizarProgreso(15, 'Descargando archivos...');
+            actualizarProgreso(10, 'Descargando archivos...');
             pollEstadoActualizacion(data.version);
         } else {
+            actualizacionEnCurso = false;
             actualizarProgreso(0, '❌ Error: ' + (data.message || 'Error desconocido'));
             if (btnActualizar) btnActualizar.disabled = false;
             if (btnMasTarde) btnMasTarde.disabled = false;
         }
     })
     .catch(error => {
+        actualizacionEnCurso = false;
         actualizarProgreso(0, '❌ Error: ' + error.message);
         if (btnActualizar) btnActualizar.disabled = false;
         if (btnMasTarde) btnMasTarde.disabled = false;
@@ -616,50 +709,108 @@ function instalarActualizacion() {
 }
 
 function pollEstadoActualizacion(versionEsperada) {
-    const btnActualizar = document.querySelector('#update-notification button:first-child');
-    const btnMasTarde = document.querySelector('#update-notification button:last-child');
     const inicio = Date.now();
-    const TIMEOUT_MS = 5 * 60 * 1000;
+    const TIMEOUT_MS = 10 * 60 * 1000;
     const intervalo = setInterval(() => {
-        fetch('/api/update/status')
+        fetch('/api/update/status', { cache: 'no-store' })
             .then(r => r.json())
             .then(estado => {
-                if (estado.estado === 'descargando' || estado.estado === 'instalando') {
-                    const pct = estado.estado === 'instalando' ? 90 : 50;
+                const est = estado.estado;
+                if (est === 'descargando' || est === 'instalando') {
+                    const m = /(\d+)\s*\/\s*(\d+)/.exec(estado.mensaje || '');
+                    let pct = (est === 'instalando') ? 90 : 35;
+                    if (m) {
+                        const hechos = parseInt(m[1], 10);
+                        const total = parseInt(m[2], 10);
+                        if (total > 0) pct = 15 + Math.round((hechos / total) * 70);
+                    }
                     actualizarProgreso(pct, estado.mensaje || 'Actualizando...');
                     return;
                 }
-                if (estado.estado === 'completado') {
+                if (est === 'reiniciando') {
                     clearInterval(intervalo);
-                    actualizarProgreso(100, '✅ ¡Actualización completada! Reiniciando...');
-                    const nuevaVersion = estado.version || versionEsperada || '1.0.1';
-                    localStorage.setItem('appVersion', nuevaVersion);
-                    localStorage.setItem('lastUpdate', new Date().toISOString());
-                    fetch('/api/reiniciar', { method: 'POST' }).catch(() => {});
-                    setTimeout(() => location.reload(true), 6000); // Forzar recarga sin caché
+                    actualizarProgreso(100, '✅ Instalada. Reiniciando la aplicación...');
+                    try {
+                        localStorage.setItem('lastUpdate', new Date().toISOString());
+                    } catch (e) {}
+                    esperarReinicio(estado.version || versionEsperada);
                     return;
                 }
-                if (estado.estado === 'error') {
+                if (est === 'completado') {
+                    // Sin auto-reinicio (el relanzador no pudo lanzarse): avisar.
                     clearInterval(intervalo);
+                    actualizacionEnCurso = false;
+                    actualizarProgreso(100, '✅ Instalada. Reiniciá la aplicación para aplicarla.');
+                    return;
+                }
+                if (est === 'error') {
+                    clearInterval(intervalo);
+                    actualizacionEnCurso = false;
                     actualizarProgreso(0, '❌ Error: ' + (estado.mensaje || estado.error || 'Falló la actualización'));
-                    if (btnActualizar) btnActualizar.disabled = false;
-                    if (btnMasTarde) btnMasTarde.disabled = false;
                     return;
                 }
                 if (Date.now() - inicio > TIMEOUT_MS) {
                     clearInterval(intervalo);
+                    actualizacionEnCurso = false;
                     actualizarProgreso(0, '❌ Tiempo de espera agotado');
-                    if (btnActualizar) btnActualizar.disabled = false;
-                    if (btnMasTarde) btnMasTarde.disabled = false;
                 }
             })
-            .catch(() => {});
+            .catch(() => {
+                // El servidor ya se está reiniciando: el status deja de responder.
+                // Se pasa a esperar el reinicio en vez de abortar.
+                const est = document.getElementById('update-status').textContent || '';
+                if (!/Reiniciando/i.test(est)) {
+                    actualizarProgreso(95, 'Reiniciando la aplicación...');
+                }
+                clearInterval(intervalo);
+                esperarReinicio(versionEsperada);
+            });
     }, 1000);
 }
 
+// Espera a que el servidor vuelva con la versión nueva y recarga la página.
+function esperarReinicio(versionEsperada) {
+    const inicio = Date.now();
+    const LIMITE_MS = 5 * 60 * 1000;
+    let intentos = 0;
+    const timer = setInterval(async () => {
+        intentos += 1;
+        const segundos = Math.round((Date.now() - inicio) / 1000);
+        actualizarProgreso(100, `Reiniciando... esperando al servidor (${segundos}s)`);
+        try {
+            const r = await fetch('/api/version', { cache: 'no-store' });
+            if (r.ok) {
+                const data = await r.json();
+                const v = data.version;
+                if (!versionEsperada || compararVersiones(v, versionEsperada) >= 0) {
+                    clearInterval(timer);
+                    actualizarProgreso(100, `✅ Versión ${v} instalada. Recargando...`);
+                    setTimeout(() => location.reload(), 1200);
+                    return;
+                }
+                console.log(`⏳ El servidor responde ${v}, se esperaba ${versionEsperada}`);
+            }
+        } catch (e) {
+            // todavía no volvió: seguir esperando
+        }
+        if (Date.now() - inicio > LIMITE_MS) {
+            clearInterval(timer);
+            actualizarEnProgresoError(
+                'La aplicación no volvió a responder. Reiniciala desde el acceso directo.');
+        }
+    }, 2000);
+}
+
+function actualizarEnProgresoError(mensaje) {
+    actualizacionEnCurso = false;
+    actualizarProgreso(0, '⚠️ ' + mensaje);
+}
+
 function actualizarProgreso(porcentaje, mensaje) {
-    document.getElementById('update-progress-bar').style.width = porcentaje + '%';
-    document.getElementById('update-status').textContent = mensaje;
+    const barra = document.getElementById('update-progress-bar');
+    const estado = document.getElementById('update-status');
+    if (barra) barra.style.width = porcentaje + '%';
+    if (estado) estado.textContent = mensaje;
 }
 
 // ============================================================
@@ -669,7 +820,14 @@ async function cargarUsuarioActual() {
     try {
         console.log('👤 Cargando datos del usuario actual...');
         const response = await fetch('/api/auth/current_user');
-        if (!response.ok) { console.warn('⚠️ No se pudo obtener usuario actual'); return null; }
+        if (!response.ok) {
+            // Sin sesión (401/403): limpiar cualquier 'user' viejo que haya
+            // quedado en localStorage (evita arrancar como si hubiera sesión
+            // y que init no muestre la pantalla de login).
+            try { localStorage.removeItem('user'); sessionStorage.removeItem('user'); } catch (e) {}
+            console.warn('⚠️ No se pudo obtener usuario actual');
+            return null;
+        }
         const data = await response.json();
         if (data.success && data.user) {
             localStorage.setItem('user', JSON.stringify(data.user));
@@ -682,8 +840,13 @@ async function cargarUsuarioActual() {
             window.dispatchEvent(event);
             return data.user;
         }
+        try { localStorage.removeItem('user'); sessionStorage.removeItem('user'); } catch (e) {}
         return null;
-    } catch (error) { console.error('❌ Error cargando usuario:', error); return null; }
+    } catch (error) {
+        try { localStorage.removeItem('user'); sessionStorage.removeItem('user'); } catch (e) {}
+        console.error('❌ Error cargando usuario:', error);
+        return null;
+    }
 }
 
 function esSuperAdmin() {
@@ -698,6 +861,204 @@ function obtenerUsuarioActual() {
 }
 
 // ============================================================
+// C9 - PERMISOS EN LA UI (ocultar tabs/acciones sin permiso)
+// ============================================================
+// El backend (C4) sigue siendo la fuente de verdad: esto solo oculta la UI
+// para no mostrar acciones que luego devolverían 403.
+function tienePermisoC9(user, permiso) {
+    if (!user) return false;
+    if (user.es_superadmin) return true;
+    var ps = user.permisos || [];
+    if (ps.indexOf('*') >= 0) return true;
+    return ps.indexOf(permiso) >= 0;
+}
+
+function aplicarPermisosUI(user) {
+    if (!user) return;
+    var superUser = !!user.es_superadmin;
+    var permisos = user.permisos || [];
+    var modulos = user.modulos_permitidos || [];
+
+    // 1) Pestañas de módulos: se ocultan si el usuario no tiene NINGÚN permiso
+    //    del módulo (permisos "stock.*", "cxp.*", etc. o modulos_permitidos).
+    document.querySelectorAll('.module-tab[data-module]').forEach(function (btn) {
+        var mod = btn.getAttribute('data-module');
+        if (!mod || mod === 'dashboard') return;
+        var tieneModulo = superUser
+            || modulos.indexOf('*') >= 0
+            || modulos.indexOf(mod) >= 0
+            || permisos.some(function (p) { return p.indexOf(mod + '.') === 0; });
+        if (!tieneModulo) btn.style.display = 'none';
+    });
+
+    // 2) Acciones puntuales marcadas con data-perm="modulo.accion"
+    document.querySelectorAll('[data-perm]').forEach(function (el) {
+        var perm = el.getAttribute('data-perm');
+        if (!perm) return;
+        if (!tienePermisoC9(user, perm)) el.style.display = 'none';
+    });
+}
+
+// Re-aplica permisos cuando se agregan nodos dinámicos con data-perm
+// (contenido renderizado por innerHTML después del login/cambio de módulo).
+if (!window._obsPermisosUI) {
+    window._obsPermisosUI = new MutationObserver(function () {
+        if (!document.querySelector('[data-perm]')) return;
+        var user = obtenerUsuarioActual();
+        if (user) aplicarPermisosUI(user);
+    });
+    document.addEventListener('DOMContentLoaded', function () {
+        window._obsPermisosUI.observe(document.body, { childList: true, subtree: true });
+    });
+}
+
+// ============================================================
+// C9 - DELEGACIÓN DE CLICKS SIN onclick INLINE (CSP fuerte)
+// ============================================================
+// Los elementos usan data-onclick con expresiones del estilo:
+//   "funcion()" | "funcion('a', 2)" | "window.fn('x')"
+//   | "this.closest('.x').remove()" | "document.getElementById('id').click()"
+//   | "event.stopPropagation()" | varias separadas por ';'
+// Parser propio con whitelist: NUNCA usa eval ni new Function.
+
+function _partirArgumentos(raw) {
+    // Divide por comas respetando comillas simples/dobles.
+    var args = [];
+    var actual = '';
+    var comilla = null;
+    for (var i = 0; i < raw.length; i++) {
+        var c = raw[i];
+        if (comilla) {
+            actual += c;
+            if (c === comilla) comilla = null;
+        } else if (c === "'" || c === '"') {
+            comilla = c;
+            actual += c;
+        } else if (c === ',') {
+            args.push(actual.trim());
+            actual = '';
+        } else {
+            actual += c;
+        }
+    }
+    if (actual.trim() !== '') args.push(actual.trim());
+    return args;
+}
+
+function _convertirArgumento(token, el, evento) {
+    if (token === 'this') return el;
+    if (token === 'event') return evento;
+    var am = token.match(/^(['"])((?:\\.|(?!\1)[\s\S])*)\1$/);
+    if (am) return am[2];
+    if (/^-?\d+(\.\d+)?$/.test(token)) return Number(token);
+    if (token === 'true') return true;
+    if (token === 'false') return false;
+    if (token === 'null') return null;
+    return undefined; // no soportado -> se descarta la llamada
+}
+
+function _ejecutarDataOnclick(expr, el, evento) {
+    expr.split(';').forEach(function (parteRaw) {
+        var parte = parteRaw.trim();
+        if (!parte) return;
+
+        // "window.abrirX && window.abrirX(...)" -> ejecuta la 2da si existe
+        var guard = parte.indexOf('&&');
+        if (guard > -1) {
+            var izquierda = parte.slice(0, guard).trim().replace(/^window\./, '');
+            parte = parte.slice(guard + 2).trim().replace(/^window\./, '');
+            if (typeof window[izquierda] !== 'function') return;
+        }
+        parte = parte.replace(/^window\./, '');
+
+        // "if(event.key==='Enter') fn()" (teclado) -> solo si coincide la tecla
+        var mEnter = parte.match(/^if\s*\(\s*event\.key\s*===\s*'([^']+)'\s*\)\s*([\s\S]*)$/);
+        if (mEnter) {
+            if (evento && evento.key === mEnter[1]) parte = mEnter[2].trim();
+            else return;
+        }
+
+        // Acciones DOM concretas y seguras (sin código arbitrario)
+        var mDoc = parte.match(/^document\.getElementById\(['"]([^'"]+)['"]\)\.(click|remove|focus)\(\)$/);
+        if (mDoc) {
+            var elDoc = document.getElementById(mDoc[1]);
+            if (elDoc && typeof elDoc[mDoc[2]] === 'function') elDoc[mDoc[2]]();
+            return;
+        }
+        var mClose = parte.match(/^this\.closest\(['"]([^'"]+)['"]\)\.remove\(\)$/);
+        if (mClose) {
+            var cerca = el.closest ? el.closest(mClose[1]) : null;
+            if (cerca && cerca.remove) cerca.remove();
+            return;
+        }
+        if (parte === 'this.remove()') {
+            if (el.remove) el.remove();
+            return;
+        }
+        if (parte === 'event.stopPropagation()') {
+            if (evento && evento.stopPropagation) evento.stopPropagation();
+            return;
+        }
+
+        // Llamada genérica a función global: fn() o fn(arg1, arg2, ...)
+        var m = parte.match(/^([A-Za-z_$][\w$]*)\s*\(([^)]*)\)$/);
+        if (!m) {
+            console.warn('[data-onclick] sintaxis no soportada:', parte);
+            return;
+        }
+        if (typeof window[m[1]] !== 'function') {
+            console.warn('[data-onclick] función no encontrada:', m[1]);
+            return;
+        }
+        var rawArgs = m[2].trim();
+        var argVals = [];
+        if (rawArgs !== '') {
+            var tokens = _partirArgumentos(rawArgs);
+            var invalido = false;
+            tokens.forEach(function (tok) {
+                var v = _convertirArgumento(tok, el, evento);
+                if (v === undefined) {
+                    console.warn('[data-onclick] argumento no soportado:', tok);
+                    invalido = true;
+                } else {
+                    argVals.push(v);
+                }
+            });
+            if (invalido) return;
+        }
+        window[m[1]].apply(null, argVals);
+    });
+}
+
+document.addEventListener('click', function (event) {
+    var origen = event.target;
+    var el = origen && origen.closest ? origen.closest('[data-onclick]') : null;
+    if (!el) return;
+    var expr = (el.getAttribute('data-onclick') || '').trim();
+    if (!expr) return;
+    _ejecutarDataOnclick(expr, el, event);
+}, true);
+
+// Delegación genérica para los demás eventos inline convertidos a
+// data-onchange / data-oninput / data-onkeydown (mismo motor, sin eval).
+// Fase de CAPTURA: hay listeners propios (p. ej. .drawer-tab) que hacen
+// stopPropagation en burbuja y romperían la delegación si fuera burbuja.
+function _delegarEventoUI(tipoEvento, attr) {
+    document.addEventListener(tipoEvento, function (evento) {
+        var origen = evento.target;
+        var el = origen && origen.closest ? origen.closest('[' + attr + ']') : null;
+        if (!el) return;
+        var expr = (el.getAttribute(attr) || '').trim();
+        if (!expr) return;
+        _ejecutarDataOnclick(expr, el, evento);
+    }, true);
+}
+_delegarEventoUI('change', 'data-onchange');
+_delegarEventoUI('input', 'data-oninput');
+_delegarEventoUI('keydown', 'data-onkeydown');
+
+
+// ============================================================
 // INICIAR VERIFICACIÓN DE NOTIFICACIONES
 // ============================================================
 document.addEventListener('DOMContentLoaded', function() {
@@ -707,6 +1068,75 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ============================================================
+
+// ============================================================
+// C9/export: descarga .xlsx generado por el backend (openpyxl)
+// ============================================================
+window.descargarXlsx = async function (archivo, hoja, columnas, filas) {
+    try {
+        const resp = await fetch('/api/reportes/exportar_xlsx', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ archivo: archivo, hoja: hoja, columnas: columnas, filas: filas })
+        });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = archivo;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (e) {
+        if (typeof toastError === 'function') toastError('Error al exportar: ' + (e && e.message ? e.message : e), 'Reportes');
+    }
+};
+
+
+// ============================================================
+// LOGIN REMOTO (C4): pantalla cuando no hay sesión (acceso por red)
+// ============================================================
+function mostrarLoginUI() {
+    const ov = document.getElementById('login-overlay');
+    if (ov) ov.style.display = 'flex';
+    const msg = document.getElementById('login-msg');
+    if (msg) msg.textContent = '';
+    const user = document.getElementById('login-user');
+    if (user) { try { user.focus(); } catch (e) {} }
+}
+
+async function enviarLoginRemoto() {
+    const user = document.getElementById('login-user');
+    const pass = document.getElementById('login-pass');
+    const msg = document.getElementById('login-msg');
+    if (!user || !pass) return;
+    if (!user.value.trim() || !pass.value) {
+        if (msg) msg.textContent = 'Ingresá usuario y contraseña';
+        return;
+    }
+    if (msg) msg.textContent = 'Verificando…';
+    try {
+        const resp = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: user.value.trim(), password: pass.value })
+        });
+        const data = await resp.json();
+        if (resp.ok && data && data.success) {
+            window.location.reload();
+            return;
+        }
+        if (msg) msg.textContent = (data && data.error) ? String(data.error) : 'Credenciales inválidas';
+    } catch (e) {
+        if (msg) msg.textContent = 'Error de conexión';
+    }
+}
+
+window.mostrarLoginUI = mostrarLoginUI;
+window.enviarLoginRemoto = enviarLoginRemoto;
+
 // EXPORTAR FUNCIONES GLOBALES
 // ============================================================
 window.showToast = showToast;
@@ -725,12 +1155,15 @@ window.seleccionarSociedad = seleccionarSociedad;
 window.actualizarApp = actualizarApp;
 window.actualizarIndicadorBase = actualizarIndicadorBase;
 window.cargarSelectsStock = cargarSelectsStock;
+window.aplicarSelectsStockDOM = aplicarSelectsStockDOM;
 window.baseActiva = baseActiva;
 window.sociedadActiva = sociedadActiva;
 window.BASES_DISPONIBLES_FRONT = BASES_DISPONIBLES_FRONT;
 window.inicializarBase = inicializarBase;
 window.inicializarDrawer = inicializarDrawer;
-window.stockSelectsCargados = stockSelectsCargados;
+// Getter vivo: el snapshot booleano al cargar app.js siempre era `false` y los
+// consumidores (templates.js/stock index.js) decidían mal si re-aplicar o no.
+Object.defineProperty(window, 'stockSelectsCargados', { configurable: true, get() { return stockSelectsCargados; } });
 window.cargandoSelects = cargandoSelects;
 window.verificarNotificacion = verificarNotificacion;
 window.mostrarNotificacion = mostrarNotificacion;
@@ -739,10 +1172,11 @@ window.instalarActualizacion = instalarActualizacion;
 window.actualizarProgreso = actualizarProgreso;
 window.sanitizarHTML = sanitizarHTML;
 window.sanitizarAtributo = sanitizarAtributo;
-window.escapeHTML = escapeHTML;
 window.cargarUsuarioActual = cargarUsuarioActual;
 window.esSuperAdmin = esSuperAdmin;
 window.obtenerUsuarioActual = obtenerUsuarioActual;
+window.tienePermisoC9 = tienePermisoC9;
+window.aplicarPermisosUI = aplicarPermisosUI;
 window.cargarCXPInicial = cargarCXPInicial;
 
 console.log('✅ app.js cargado correctamente (XSS sanitizado)');

@@ -5,11 +5,12 @@
 
 from datetime import date, datetime
 import base64
+import io
 import os
 import tempfile
 import logging
 import zipfile
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, session
 import openpyxl
 import pyodbc
 from config import (
@@ -17,7 +18,11 @@ from config import (
     SQL_SERVER,
     SQL_USERNAME,
     SQL_PASSWORD,
+    SQL_ENCRYPT_ACTIVO,
 )
+from modules.shared.decorators import requiere_permiso, chequear_acceso_total_bases
+from modules.shared.permisos import PermisosSistema
+from modules.shared.usuarios import get_gestor_usuarios
 
 # Configurar logging
 logger = logging.getLogger(__name__)
@@ -34,6 +39,52 @@ PAISES_PERMITIDOS = list(BASES_COTI.keys())
 
 # Países prioritarios para obtener cotización (primero RD, luego el resto)
 PAISES_PRIORITARIOS = ['RD'] + [p for p in PAISES_PERMITIDOS if p != 'RD']
+
+# ============================================================
+# C4 - ACCESO POR PAÍS (sigla → base de BASES_COTI)
+# ============================================================
+
+def _siglas_permitidas_usuario():
+    """Siglas a las que accede el usuario actual (vacío si no tiene acceso).
+    superadmin / bases_permitidas=['*'] → todas."""
+    gestor = get_gestor_usuarios()
+    username = session.get('username')
+    if not username:
+        return []
+    usuario = gestor.usuarios.get(username)
+    if not usuario:
+        return []
+    if usuario.es_superadmin or '*' in usuario.bases_permitidas:
+        return list(PAISES_PERMITIDOS)
+    return [
+        sigla for sigla, base_code in BASES_COTI.items()
+        if gestor.tiene_acceso_a_base(username, base_code)
+    ]
+
+def _chequear_siglas_acceso(siglas):
+    """Valida (fail-closed) que TODAS las siglas pedidas estén autorizadas.
+    Retorna None si OK o una respuesta Flask 401/403."""
+    username = session.get('username')
+    if not username:
+        return jsonify({
+            "error": "No autenticado",
+            "code": "UNAUTHORIZED",
+            "login_url": "/"
+        }), 401
+    gestor = get_gestor_usuarios()
+    usuario = gestor.usuarios.get(username)
+    if usuario and (usuario.es_superadmin or '*' in usuario.bases_permitidas):
+        return None
+    no_permitidas = [
+        s for s in siglas
+        if s in PAISES_PERMITIDOS and not gestor.tiene_acceso_a_base(username, BASES_COTI[s])
+    ]
+    if no_permitidas:
+        return jsonify({
+            "error": f"País(es) no autorizado(s) para este usuario: {', '.join(sorted(set(no_permitidas)))}",
+            "code": "BASE_FORBIDDEN"
+        }), 403
+    return None
 
 def validar_sigla(sigla: str) -> bool:
     """Valida que la sigla del país sea válida"""
@@ -88,8 +139,9 @@ def obtener_conexion_pais(sigla):
         f'UID={SQL_USERNAME};'
         f'PWD={SQL_PASSWORD};'
         'TrustServerCertificate=yes;'
-        'Timeout=10;'            # Timeout de conexión (segundos)
-        'Connect Timeout=10;'    # Alternativa
+        + ('Encrypt=yes;' if SQL_ENCRYPT_ACTIVO else '')
+        + 'Timeout=10;'            # Timeout de conexión (segundos)
+        + 'Connect Timeout=10;'    # Alternativa
     )
     return pyodbc.connect(conn_str)
 
@@ -190,11 +242,14 @@ def _guardar_cotizaciones(items):
 # ============================================================
 
 @cotizaciones_bp.route("/historico")
+@requiere_permiso(PermisosSistema.COTIZACIONES_VER)
 def historico():
-    """Obtiene el historial de cotizaciones por país"""
+    """Obtiene el historial de cotizaciones por país.
+    C4: solo devuelve países a los que el usuario tiene acceso."""
     result = {}
-    
-    for sigla in PAISES_PERMITIDOS:
+    siglas = _siglas_permitidas_usuario()
+
+    for sigla in siglas:
         conn = None
         try:
             conn = obtener_conexion_pais_segura(sigla)
@@ -244,6 +299,7 @@ def historico():
 
 
 @cotizaciones_bp.route("/guardar", methods=["POST"])
+@requiere_permiso(PermisosSistema.COTIZACIONES_CREAR)
 def guardar():
     """Guarda una cotización en uno o varios países"""
     try:
@@ -260,6 +316,16 @@ def guardar():
                 "ok": False,
                 "error": "Se esperaba una lista de cotizaciones"
             }), 400
+
+        # C4: cada país destino debe estar autorizado para el usuario.
+        siglas_pedidas = set()
+        for item in data:
+            if not isinstance(item, dict):
+                return jsonify({"ok": False, "error": "Item inválido en la lista"}), 400
+            siglas_pedidas.update(item.get("bases", PAISES_PERMITIDOS))
+        chequeo = _chequear_siglas_acceso(list(siglas_pedidas))
+        if chequeo:
+            return chequeo
         
         items = []
         for item in data:
@@ -314,20 +380,27 @@ def guardar():
 
 
 @cotizaciones_bp.route("/plantilla")
+@requiere_permiso(PermisosSistema.COTIZACIONES_VER)
 def plantilla():
-    """Descarga plantilla Excel para cotizaciones"""
+    """Descarga plantilla Excel para cotizaciones (Fecha | Cotización | País opcional)"""
     try:
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = "Cotizaciones"
         ws["A1"] = "Fecha"
         ws["B1"] = "Cotización DL"
+        ws["C1"] = "País (opcional)"
         ws["A2"] = date.today().strftime("%d/%m/%Y")
         ws["B2"] = "7,61982"
+        ws["C2"] = ""
+        siglas = ", ".join(PAISES_PERMITIDOS)
+        ws["A4"] = ("Dejá 'País' vacío para usar las bases seleccionadas en la pantalla. Siglas válidas: " + siglas)
+        ws["A4"].font = openpyxl.styles.Font(italic=True, color="888888")
         for cell in ws["A"]:
             cell.number_format = "DD/MM/YYYY"
         ws.column_dimensions["A"].width = 14
         ws.column_dimensions["B"].width = 18
+        ws.column_dimensions["C"].width = 16
         
         with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
             wb.save(tmp.name)
@@ -342,8 +415,16 @@ def plantilla():
 
 
 @cotizaciones_bp.route("/importar_excel", methods=["POST"])
+@requiere_permiso(PermisosSistema.COTIZACIONES_CREAR)
 def importar_excel():
-    """Importa cotizaciones desde un archivo Excel"""
+    """Importa cotizaciones desde un archivo Excel.
+
+    Columnas: A=Fecha, B=Cotización, C=País (OPCIONAL).
+    - Si la fila trae una sigla válida en C, esa cotización va SOLO a ese país.
+    - Si C está vacía, se usa la/s base/s seleccionadas en la UI (payload 'bases').
+    - Las filas con sigla desconocida/sin permiso NO se importan y se listan.
+    - dry_run=true → solo previsualiza (no escribe nada) para el modal de confirmación.
+    """
     try:
         data = request.json
         
@@ -354,89 +435,118 @@ def importar_excel():
             }), 400
             
         file_bytes = base64.b64decode(data["file_b64"])
-        bases = data.get("bases", PAISES_PERMITIDOS)
-        
-        bases_validas = [b for b in bases if b in PAISES_PERMITIDOS]
-        if not bases_validas:
-            return jsonify({
-                "ok": False,
-                "error": "No hay bases válidas para importar"
-            }), 400
-        
-        with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
-            tmp.write(file_bytes)
-            tmp_path = tmp.name
-            
-        items = []
+        ui_bases = data.get("bases") or []
+        dry_run = bool(data.get("dry_run"))
+
         try:
-            try:
-                wb = openpyxl.load_workbook(tmp_path, data_only=True)
-            except (openpyxl.utils.exceptions.InvalidFileException, zipfile.BadZipFile) as e:
-                return jsonify({
-                    "ok": False,
-                    "error": "El archivo no es un Excel válido"
-                }), 400
-                
-            ws = wb.active
-            
-            for row in ws.iter_rows(min_row=2, values_only=True):
-                if not row[0] or not row[1]:
-                    continue
-                    
-                # Validar fecha
-                fecha_val = row[0]
-                if hasattr(fecha_val, "strftime"):
-                    fecha_str = fecha_val.strftime("%Y-%m-%d")
-                else:
-                    parts = str(fecha_val).split("/")
-                    if len(parts) == 3:
-                        try:
-                            fecha_str = f"{parts[2]}-{parts[1].zfill(2)}-{parts[0].zfill(2)}"
-                            if not validar_fecha(fecha_str):
-                                continue
-                        except:
-                            continue
-                    else:
-                        continue
-                
-                # Validar cotización
-                try:
-                    coti_val = float(str(row[1]).replace(",", ".").replace(" ", ""))
-                    if coti_val <= 0:
-                        continue
-                except (ValueError, TypeError):
-                    continue
-                    
-                items.append({
-                    "fecha": fecha_str,
-                    "cotizacion": coti_val,
-                    "bases": bases_validas
-                })
-                
-        finally:
-            os.unlink(tmp_path)
-        
-        if not items:
+            # 🔴 FIX: leer desde memoria (BytesIO). Antes se escribía un archivo
+            # temporal y openpyxl lo dejaba abierto → os.unlink() fallaba en
+            # Windows con WinError 32 y toda importación daba 500.
+            wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
+        except (openpyxl.utils.exceptions.InvalidFileException, zipfile.BadZipFile):
             return jsonify({
                 "ok": False,
-                "error": "No se encontraron datos válidos en el Excel."
+                "error": "El archivo no es un Excel válido"
             }), 400
 
-        resultado = _guardar_cotizaciones(items)
-        
-        if resultado["bases_con_error"]:
-            return jsonify({
-                "ok": resultado["ok"],
-                "insertados": resultado["insertados"],
-                "errores": resultado["errores"],
-                "bases_con_error": resultado["bases_con_error"],
-                "mensaje": f"⚠️ No se pudo importar en: {', '.join(resultado['bases_con_error'])}."
+        ws = wb.active
+        ui_validas = [b for b in ui_bases if b in PAISES_PERMITIDOS]
+
+        items = []
+        errores_filas = []
+        siglas_usadas = set(ui_validas)
+        nro_fila = 1
+
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            nro_fila += 1
+            if not row or not row[0] or not row[1]:
+                continue
+
+            # Validar fecha
+            fecha_val = row[0]
+            if hasattr(fecha_val, "strftime"):
+                fecha_str = fecha_val.strftime("%Y-%m-%d")
+            else:
+                parts = str(fecha_val).split("/")
+                if len(parts) == 3:
+                    try:
+                        fecha_str = f"{parts[2]}-{parts[1].zfill(2)}-{parts[0].zfill(2)}"
+                        if not validar_fecha(fecha_str):
+                            continue
+                    except:
+                        continue
+                else:
+                    continue
+
+            # Validar cotización
+            try:
+                coti_val = float(str(row[1]).replace(",", ".").replace(" ", ""))
+                if coti_val <= 0:
+                    continue
+            except (ValueError, TypeError):
+                continue
+
+            # Destino: columna C (País, opcional) por fila; si viene vacía → UI
+            pais_raw = row[2] if len(row) > 2 else None
+            if pais_raw is None or str(pais_raw).strip() == "":
+                row_bases = ui_validas
+                if not row_bases:
+                    errores_filas.append(
+                        f"Fila {nro_fila}: sin país destino (celda 'País' vacía y no hay países seleccionados)."
+                    )
+                    continue
+            else:
+                sigla = str(pais_raw).strip().upper()
+                if sigla not in PAISES_PERMITIDOS:
+                    errores_filas.append(f"Fila {nro_fila}: '{sigla}' no es una sigla válida.")
+                    continue
+                row_bases = [sigla]
+                siglas_usadas.add(sigla)
+
+            items.append({
+                "fecha": fecha_str,
+                "cotizacion": coti_val,
+                "bases": row_bases
             })
 
+        # C4: TODAS las siglas que se escribirían deben estar autorizadas.
+        if siglas_usadas:
+            chequeo = _chequear_siglas_acceso(sorted(siglas_usadas))
+            if chequeo:
+                return chequeo
+
+        if not items:
+            detalle = errores_filas[0] if errores_filas else "No se encontraron datos válidos en el Excel."
+            return jsonify({
+                "ok": False,
+                "error": detalle,
+                "errores": errores_filas
+            }), 400
+
+        # Resumen por país destino (equivalente a inserciones planeadas)
+        por_pais = {}
+        for it in items:
+            for s in it["bases"]:
+                por_pais[s] = por_pais.get(s, 0) + 1
+
+        if dry_run:
+            return jsonify({
+                "ok": True,
+                "preview": True,
+                "filas_validas": len(items),
+                "por_pais": por_pais,
+                "errores": errores_filas
+            })
+
+        resultado = _guardar_cotizaciones(items)
+
         return jsonify({
-            "ok": resultado["ok"],
+            "ok": resultado["ok"] and not errores_filas,
             "insertados": resultado["insertados"],
-            "errores": resultado["errores"]
+            "errores": errores_filas + resultado["errores"],
+            "bases_con_error": resultado["bases_con_error"],
+            "por_pais": por_pais,
+            "filas_validas": len(items)
         })
         
     except Exception as e:
@@ -448,10 +558,12 @@ def importar_excel():
 
 
 @cotizaciones_bp.route("/cotizacion")
+@requiere_permiso(PermisosSistema.COTIZACIONES_VER)
 def cotizacion():
     """
     Obtiene la cotización para una fecha y moneda específica.
     Intenta obtenerla de países prioritarios (primero RD) antes de devolver 1.0.
+    C4: solo consulta países a los que el usuario tiene acceso.
     """
     try:
         moneda = request.args.get("moneda", "DL")
@@ -472,8 +584,11 @@ def cotizacion():
                 "code": "INVALID_DATE"
             }), 400
 
-        # Intentar con países prioritarios (primero RD, luego el resto)
-        for sigla in PAISES_PRIORITARIOS:
+        # Intentar con países prioritarios (primero RD, luego el resto),
+        # limitado a los países a los que el usuario tiene acceso (C4).
+        permitidas = set(_siglas_permitidas_usuario())
+        siglas_a_consultar = [s for s in PAISES_PRIORITARIOS if s in permitidas]
+        for sigla in siglas_a_consultar:
             conn = None
             try:
                 conn = obtener_conexion_pais_segura(sigla)

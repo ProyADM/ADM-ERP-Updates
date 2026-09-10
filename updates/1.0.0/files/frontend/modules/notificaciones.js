@@ -86,6 +86,13 @@ export function iniciarNotificaciones() {
 }
 
 async function actualizarNotificaciones() {
+    // Sin sesión autenticada (pantalla de login remoto) no consultar.
+    try {
+        const usuario = (typeof window.obtenerUsuarioActual === 'function') ? window.obtenerUsuarioActual() : null;
+        if (!usuario) return;
+    } catch (e) {
+        return;
+    }
     try {
         const desde = ultimaConsulta || new Date(Date.now() - 86400000).toISOString();
         const url = `/api/notificaciones/resumen?desde=${encodeURIComponent(desde)}`;
@@ -171,7 +178,7 @@ function renderDropdown() {
         html += `
             <div style="padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:13px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;font-weight:600;">
-                    <span>${item.sigla || item.base}</span>
+                    <span>${escapeHTML(item.sigla || item.base)}</span>
                     <span style="background:#2563eb;color:#fff;border-radius:12px;padding:0 10px;font-size:11px;">${total}</span>
                 </div>
                 <div style="display:flex;gap:12px;font-size:12px;color:#64748b;margin-top:2px;">

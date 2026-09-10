@@ -5,14 +5,12 @@
 function inicializarStock() {
     console.log('📦 Inicializando Stock...');
     
+    // Idempotente: si las caches ya están, re-aplica las opciones al DOM del
+    // módulo recién montado (bug de combos vacíos de stock).
     if (typeof cargarSelectsStock === 'function') {
-        if (window.stockSelectsCargados) {
-            console.log('ℹ️ Selects de stock ya cargados (desde inicializarStock)');
-        } else {
-            setTimeout(() => {
-                cargarSelectsStock();
-            }, 100);
-        }
+        setTimeout(() => {
+            cargarSelectsStock();
+        }, 100);
     }
     
     if (typeof closeDrawer === 'function') {
@@ -39,6 +37,18 @@ function navegarStock(seccionId) {
         target.classList.add('active');
         target.style.display = 'block';
         console.log(`✅ Sección ${seccionId} mostrada`);
+
+        // Limpiar resultados/mensajes viejos al entrar a la sección (evita
+        // mensajes "precargados" del movimiento anterior).
+        const idResultados = {
+            'ajuste-e': 'ae-resultados',
+            'ajuste-s': 'as-resultados',
+            'transferencia': 'trm-resultados'
+        }[seccionId];
+        if (idResultados) {
+            const elResult = document.getElementById(idResultados);
+            if (elResult) elResult.textContent = '';
+        }
         
         const titulo = document.getElementById('seccion-activa');
         if (titulo) {

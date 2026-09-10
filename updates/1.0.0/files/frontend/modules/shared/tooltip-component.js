@@ -108,7 +108,7 @@ function toggleTooltip(event, key, targetElement) {
             <div style="font-weight:600;color:#60a5fa;font-size:15px;">
                 ${config.titulo}
             </div>
-            <button onclick="this.closest('.tooltip-contextual').remove()" 
+            <button data-onclick="this.closest('.tooltip-contextual').remove()" 
                     style="background:transparent;border:none;color:#94a3b8;cursor:pointer;font-size:18px;padding:0 4px;line-height:1;">
                 ✕
             </button>

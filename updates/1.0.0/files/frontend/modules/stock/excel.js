@@ -2,18 +2,6 @@
 // STOCK - EXCEL (CORREGIDO)
 // ============================================================
 
-function escapeHTML(str) {
-    if (!str) return '';
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return String(str).replace(/[&<>"']/g, function(m) { return map[m]; });
-}
-
 function sanitizarValor(val) {
     if (val === undefined || val === null) return '';
     return escapeHTML(String(val));
@@ -62,6 +50,5 @@ async function cargarExcel(tipo, inputEl, prefix) {
 // ============================================================
 window.descargarPlantilla = descargarPlantilla;
 window.cargarExcel = cargarExcel;
-window.escapeHTML = escapeHTML;
 
 console.log('✅ Stock - Excel cargado (XSS sanitizado)');

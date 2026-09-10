@@ -6,18 +6,6 @@
 // FUNCIÓN DE SANITIZACIÓN
 // ============================================================
 
-function escapeHTML(str) {
-    if (!str) return '';
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return String(str).replace(/[&<>"']/g, function(m) { return map[m]; });
-}
-
 // ============================================================
 // TEMPLATES
 // ============================================================
@@ -40,7 +28,7 @@ const TEMPLATES = {
             <div class="newsletter-card">
                 <div class="card-header" style="background:#f0fdf4;">
                     <span>📦 Stock</span>
-                    <button class="btn-ver-todos" onclick="cambiarModulo('stock')">Ver todos</button>
+                    <button class="btn-ver-todos" data-onclick="cambiarModulo('stock')">Ver todos</button>
                 </div>
                 <div class="card-body" id="newsletter-stock">
                     <div class="sin-actividad">Cargando...</div>
@@ -51,7 +39,7 @@ const TEMPLATES = {
             <div class="newsletter-card">
                 <div class="card-header" style="background:#fef3f2;">
                     <span>💰 Ventas registradas</span>
-                    <button class="btn-ver-todos" onclick="cambiarModulo('reportes')">Ver todos</button>
+                    <button class="btn-ver-todos" data-onclick="cambiarModulo('reportes')">Ver todos</button>
                 </div>
                 <div class="card-body" id="newsletter-ventas">
                     <div class="sin-actividad">Cargando...</div>
@@ -62,7 +50,7 @@ const TEMPLATES = {
             <div class="newsletter-card">
                 <div class="card-header" style="background:#fefce8;">
                     <span>📋 Contratos pendientes</span>
-                    <button class="btn-ver-todos" onclick="cambiarModulo('reportes')">Ver todos</button>
+                    <button class="btn-ver-todos" data-onclick="cambiarModulo('reportes')">Ver todos</button>
                 </div>
                 <div class="card-body" id="newsletter-contratos">
                     <div class="sin-actividad">Cargando...</div>
@@ -83,9 +71,9 @@ const TEMPLATES = {
         <div class="section" id="ajuste-e">
             <div class="subsection active" id="ae-individual">
                 <label>Artículo</label>
-                <select id="ae-articulo" onchange="cargarPartidasEntrada()"></select>
+                <select id="ae-articulo" data-onchange="cargarPartidasEntrada()"></select>
                 <label>Depósito</label>
-                <select id="ae-deposito" onchange="cargarPartidasEntrada()"></select>
+                <select id="ae-deposito" data-onchange="cargarPartidasEntrada()"></select>
                 <label id="ae-partida-label" style="display:none">Nombre de partida <span class="hint">(opcional)</span></label>
                 <input type="text" id="ae-partida-nombre" style="display:none" placeholder="Ej: SY15 622552025">
                 <label>Cantidad</label>
@@ -94,21 +82,21 @@ const TEMPLATES = {
                 <input type="date" id="ae-fecha">
                 <label>Comentario <span class="hint">(opcional)</span></label>
                 <input type="text" id="ae-comentario" placeholder="Descripción del movimiento">
-                <button class="full" onclick="hacerAjusteIndividual('E')">Cargar Ajuste de Entrada</button>
+                <button class="full" data-onclick="hacerAjusteIndividual('E')" data-perm="stock.ajustar">Cargar Ajuste de Entrada</button>
             </div>
             <div class="subsection" id="ae-multiple">
                 <table class="grid-editable" id="ae-grid"><thead><tr><th>Artículo</th><th>Depósito</th><th>Cantidad</th><th></th></tr></thead><tbody></tbody></table>
                 <div class="grid-actions">
-                    <button class="small secondary" onclick="agregarFila('ae')">+ Agregar fila</button>
-                    <button class="small" onclick="cargarLote('ae', 'E')">Cargar todo (1 comprobante)</button>
+                    <button class="small secondary" data-onclick="agregarFila('ae')">+ Agregar fila</button>
+                    <button class="small" data-onclick="cargarLote('ae', 'E')" data-perm="stock.ajustar">Cargar todo (1 comprobante)</button>
                 </div>
                 <div class="resultados-tabla" id="ae-resultados"></div>
             </div>
             <div class="subsection" id="ae-excel">
                 <p class="hint">Descargá la plantilla, completala con tus artículos y subila acá.</p>
-                <button class="small secondary" onclick="descargarPlantilla('ajuste')">Descargar plantilla Excel</button>
-                <div class="file-drop" onclick="document.getElementById('ae-file').click()">Click para elegir archivo .xlsx</div>
-                <input type="file" id="ae-file" accept=".xlsx" style="display:none" onchange="cargarExcel('ajuste', this, 'ae')">
+                <button class="small secondary" data-onclick="descargarPlantilla('ajuste')">Descargar plantilla Excel</button>
+                <div class="file-drop" data-onclick="document.getElementById('ae-file').click()">Click para elegir archivo .xlsx</div>
+                <input type="file" id="ae-file" accept=".xlsx" style="display:none" data-onchange="cargarExcel('ajuste', this, 'ae')">
                 <div class="resultados-tabla" id="ae-excel-resultados"></div>
             </div>
         </div>
@@ -117,9 +105,9 @@ const TEMPLATES = {
         <div class="section" id="ajuste-s">
             <div class="subsection active" id="as-individual">
                 <label>Artículo</label>
-                <select id="as-articulo" onchange="cargarPartidas()"></select>
+                <select id="as-articulo" data-onchange="cargarPartidas()"></select>
                 <label>Depósito</label>
-                <select id="as-deposito" onchange="cargarPartidas()"></select>
+                <select id="as-deposito" data-onchange="cargarPartidas()"></select>
                 <label id="as-partida-label" style="display:none">Partida</label>
                 <select id="as-partida" style="display:none"></select>
                 <label>Cantidad</label>
@@ -128,21 +116,21 @@ const TEMPLATES = {
                 <input type="date" id="as-fecha">
                 <label>Comentario <span class="hint">(opcional)</span></label>
                 <input type="text" id="as-comentario" placeholder="Descripción del movimiento">
-                <button class="full" onclick="hacerAjusteIndividual('S')">Cargar Ajuste de Salida</button>
+                <button class="full" data-onclick="hacerAjusteIndividual('S')" data-perm="stock.ajustar">Cargar Ajuste de Salida</button>
             </div>
             <div class="subsection" id="as-multiple">
                 <table class="grid-editable" id="as-grid"><thead><tr><th>Artículo</th><th>Depósito</th><th>Cantidad</th><th id="as-th-partida" style="display:none">Partida</th><th></th></tr></thead><tbody></tbody></table>
                 <div class="grid-actions">
-                    <button class="small secondary" onclick="agregarFila('as')">+ Agregar fila</button>
-                    <button class="small" onclick="cargarLote('as', 'S')">Cargar todo (1 comprobante)</button>
+                    <button class="small secondary" data-onclick="agregarFila('as')">+ Agregar fila</button>
+                    <button class="small" data-onclick="cargarLote('as', 'S')" data-perm="stock.ajustar">Cargar todo (1 comprobante)</button>
                 </div>
                 <div class="resultados-tabla" id="as-resultados"></div>
             </div>
             <div class="subsection" id="as-excel">
                 <p class="hint">Descargá la plantilla (columna "partida" solo si aplica) y subila acá.</p>
-                <button class="small secondary" onclick="descargarPlantilla('ajuste')">Descargar plantilla Excel</button>
-                <div class="file-drop" onclick="document.getElementById('as-file').click()">Click para elegir archivo .xlsx</div>
-                <input type="file" id="as-file" accept=".xlsx" style="display:none" onchange="cargarExcel('ajuste', this, 'as')">
+                <button class="small secondary" data-onclick="descargarPlantilla('ajuste')">Descargar plantilla Excel</button>
+                <div class="file-drop" data-onclick="document.getElementById('as-file').click()">Click para elegir archivo .xlsx</div>
+                <input type="file" id="as-file" accept=".xlsx" style="display:none" data-onchange="cargarExcel('ajuste', this, 'as')">
                 <div class="resultados-tabla" id="as-excel-resultados"></div>
             </div>
         </div>
@@ -151,9 +139,9 @@ const TEMPLATES = {
         <div class="section" id="transferencia">
             <div class="subsection active" id="tr-individual">
                 <label>Artículo</label>
-                <select id="tr-articulo" onchange="cargarPartidasTransferencia()"></select>
+                <select id="tr-articulo" data-onchange="cargarPartidasTransferencia()"></select>
                 <label>Depósito origen</label>
-                <select id="tr-origen" onchange="cargarPartidasTransferencia()"></select>
+                <select id="tr-origen" data-onchange="cargarPartidasTransferencia()"></select>
                 <label id="tr-partida-label" style="display:none">Partida</label>
                 <select id="tr-partida" style="display:none"></select>
                 <label>Depósito destino</label>
@@ -164,21 +152,21 @@ const TEMPLATES = {
                 <input type="date" id="tr-fecha">
                 <label>Comentario <span class="hint">(opcional)</span></label>
                 <input type="text" id="tr-comentario" placeholder="Descripción del movimiento">
-                <button class="full" onclick="hacerTransferenciaIndividual()">Cargar Transferencia</button>
+                <button class="full" data-onclick="hacerTransferenciaIndividual()" data-perm="stock.transferir">Cargar Transferencia</button>
             </div>
             <div class="subsection" id="tr-multiple">
                 <table class="grid-editable" id="trm-grid"><thead><tr><th>Artículo</th><th>Dep. Origen</th><th>Dep. Destino</th><th>Cantidad</th><th id="trm-th-partida" style="display:none">Partida</th><th></th></tr></thead><tbody></tbody></table>
                 <div class="grid-actions">
-                    <button class="small secondary" onclick="agregarFila('trm')">+ Agregar fila</button>
-                    <button class="small" onclick="cargarLoteTransferencia()">Cargar todo</button>
+                    <button class="small secondary" data-onclick="agregarFila('trm')">+ Agregar fila</button>
+                    <button class="small" data-onclick="cargarLoteTransferencia()" data-perm="stock.transferir">Cargar todo</button>
                 </div>
                 <div class="resultados-tabla" id="trm-resultados"></div>
             </div>
             <div class="subsection" id="tr-excel">
                 <p class="hint">Descargá la plantilla (columna "partida" solo si aplica), completala y subila acá.</p>
-                <button class="small secondary" onclick="descargarPlantilla('transferencia')">Descargar plantilla Excel</button>
-                <div class="file-drop" onclick="document.getElementById('tr-file').click()">Click para elegir archivo .xlsx</div>
-                <input type="file" id="tr-file" accept=".xlsx" style="display:none" onchange="cargarExcel('transferencia', this, 'trm')">
+                <button class="small secondary" data-onclick="descargarPlantilla('transferencia')">Descargar plantilla Excel</button>
+                <div class="file-drop" data-onclick="document.getElementById('tr-file').click()">Click para elegir archivo .xlsx</div>
+                <input type="file" id="tr-file" accept=".xlsx" style="display:none" data-onchange="cargarExcel('transferencia', this, 'trm')">
                 <div class="resultados-tabla" id="trm-excel-resultados"></div>
             </div>
         </div>
@@ -188,25 +176,25 @@ const TEMPLATES = {
             <div class="stock-filters">
                 <div>
                     <label>Buscar artículo</label>
-                    <input type="text" id="stk-q" placeholder="Nombre del artículo..." onkeydown="if(event.key==='Enter') consultarStock()">
+                    <input type="text" id="stk-q" placeholder="Nombre del artículo..." data-onkeydown="if(event.key==='Enter') consultarStock()">
                 </div>
                 <div>
                     <label>Depósito</label>
                     <select id="stk-deposito"><option value="">Todos</option></select>
                 </div>
             </div>
-            <button class="small" style="margin-top:14px" onclick="consultarStock()">Buscar</button>
+            <button class="small" style="margin-top:14px" data-onclick="consultarStock()">Buscar</button>
             <div id="stk-seleccion-bar">
                 <span id="stk-seleccion-count">0 seleccionados</span>
-                <button class="small secondary" onclick="enviarSeleccionAMovimiento('ae')">A Ajuste +</button>
-                <button class="small secondary" onclick="enviarSeleccionAMovimiento('as')">A Ajuste -</button>
-                <button class="small secondary" onclick="enviarSeleccionAMovimiento('trm')">A Transferencia</button>
+                <button class="small secondary" data-onclick="enviarSeleccionAMovimiento('ae')">A Ajuste +</button>
+                <button class="small secondary" data-onclick="enviarSeleccionAMovimiento('as')">A Ajuste -</button>
+                <button class="small secondary" data-onclick="enviarSeleccionAMovimiento('trm')">A Transferencia</button>
             </div>
             <div class="stock-tabla-wrap">
                 <table class="grid-editable" id="stk-tabla">
                     <thead>
                         <tr>
-                            <th style="width:36px;text-align:center;"><input type="checkbox" id="stk-check-all" onclick="toggleTodosStock(this)"></th>
+                            <th style="width:36px;text-align:center;"><input type="checkbox" id="stk-check-all" data-onclick="toggleTodosStock(this)"></th>
                             <th>Código</th>
                             <th>Descripción</th>
                             <th>Depósito</th>
@@ -222,13 +210,13 @@ const TEMPLATES = {
 
         <!-- STOCK: Stock Consolidado -->
         <div class="section" id="stock-consolidado">
-            <div id="cons-banner"><span>Hay nuevos movimientos de stock.</span><button onclick="buscarConsolidado(true)">Actualizar</button></div>
+            <div id="cons-banner"><span>Hay nuevos movimientos de stock.</span><button data-onclick="buscarConsolidado(true)">Actualizar</button></div>
             <label>Buscar artículo</label>
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-                <input type="text" id="cons-q" placeholder="Nombre o código..." style="flex:1;min-width:180px" onkeydown="if(event.key==='Enter') buscarConsolidado()">
-                <button class="small" onclick="buscarConsolidado()">Buscar</button>
+                <input type="text" id="cons-q" placeholder="Nombre o código..." style="flex:1;min-width:180px" data-onkeydown="if(event.key==='Enter') buscarConsolidado()">
+                <button class="small" data-onclick="buscarConsolidado()">Buscar</button>
                 <label style="display:flex;align-items:center;gap:7px;margin:0;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap">
-                    <input type="checkbox" id="cons-solo-errores" onchange="filtrarSoloErrores()" style="width:15px;height:15px;accent-color:var(--primary)"> Solo inconsistencias
+                    <input type="checkbox" id="cons-solo-errores" data-onchange="filtrarSoloErrores()" style="width:15px;height:15px;accent-color:var(--primary)"> Solo inconsistencias
                 </label>
             </div>
             <div id="cons-loading" style="display:none;margin-top:16px;color:var(--ink-soft);font-size:13px">Consultando todas las bases…</div>
@@ -243,25 +231,25 @@ const TEMPLATES = {
                 <label>Código</label>
                 <input type="text" id="art-codigo" placeholder="Ej: 10.8.9">
                 <label>Categoría</label>
-                <select id="art-categoria" onchange="aplicarDefaultPartidas()"></select>
+                <select id="art-categoria" data-onchange="aplicarDefaultPartidas()"></select>
                 <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-weight:500;margin-top:14px">
                     <input type="checkbox" id="art-con-partidas" style="width:auto"> Lleva partidas
                 </label>
                 <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-weight:500;margin-top:10px">
-                    <input type="checkbox" id="art-se-compra" checked style="width:auto" onchange="actualizarCamposOrigen()"> Se compra
+                    <input type="checkbox" id="art-se-compra" checked style="width:auto" data-onchange="actualizarCamposOrigen()"> Se compra
                 </label>
                 <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-weight:500;margin-top:10px">
-                    <input type="checkbox" id="art-se-vende" checked style="width:auto" onchange="actualizarCamposOrigen()"> Se vende
+                    <input type="checkbox" id="art-se-vende" checked style="width:auto" data-onchange="actualizarCamposOrigen()"> Se vende
                 </label>
                 <div id="art-origen-wrap">
                     <label>Origen (define cuentas contables)</label>
                     <select id="art-origen"><option value="local">Local</option><option value="exterior">Exterior</option></select>
                 </div>
-                <button class="full" onclick="crearArticulo()">Crear Artículo</button>
+                <button class="full" data-onclick="crearArticulo()" data-perm="stock.crear">Crear Artículo</button>
             </div>
             <div class="subsection" id="art-modificar">
                 <label>Buscar artículo</label>
-                <select id="art-mod-buscar" onchange="cargarArticuloParaModificar()"><option value="">Elegí un artículo...</option></select>
+                <select id="art-mod-buscar" data-onchange="cargarArticuloParaModificar()"><option value="">Elegí un artículo...</option></select>
                 <div id="art-mod-form" style="display:none">
                     <label>Nombre</label>
                     <input type="text" id="art-mod-nombre">
@@ -273,22 +261,22 @@ const TEMPLATES = {
                         <input type="checkbox" id="art-mod-con-partidas" style="width:auto"> Lleva partidas
                     </label>
                     <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-weight:500;margin-top:10px">
-                        <input type="checkbox" id="art-mod-se-compra" style="width:auto" onchange="actualizarCamposOrigenMod()"> Se compra
+                        <input type="checkbox" id="art-mod-se-compra" style="width:auto" data-onchange="actualizarCamposOrigenMod()"> Se compra
                     </label>
                     <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-weight:500;margin-top:10px">
-                        <input type="checkbox" id="art-mod-se-vende" style="width:auto" onchange="actualizarCamposOrigenMod()"> Se vende
+                        <input type="checkbox" id="art-mod-se-vende" style="width:auto" data-onchange="actualizarCamposOrigenMod()"> Se vende
                     </label>
                     <div id="art-mod-origen-wrap">
                         <label>Origen</label>
                         <select id="art-mod-origen"><option value="local">Local</option><option value="exterior">Exterior</option></select>
                     </div>
-                    <button class="full" onclick="guardarModificacionArticulo()">Guardar Cambios</button>
+                    <button class="full" data-onclick="guardarModificacionArticulo()" data-perm="stock.editar">Guardar Cambios</button>
                 </div>
             </div>
             <div class="subsection" id="art-excel">
                 <div class="grid-actions" style="margin-bottom:18px">
-                    <button class="small" id="art-excel-btn-crear" onclick="mostrarExcelModo('crear')">Crear nuevos</button>
-                    <button class="small secondary" id="art-excel-btn-modificar" onclick="mostrarExcelModo('modificar')">Modificar existentes</button>
+                    <button class="small" id="art-excel-btn-crear" data-onclick="mostrarExcelModo('crear')">Crear nuevos</button>
+                    <button class="small secondary" id="art-excel-btn-modificar" data-onclick="mostrarExcelModo('modificar')">Modificar existentes</button>
                 </div>
                 <div class="multibase-selector">
                     <label>Aplicar en (dejar todo destildado = solo la base activa actual)</label>
@@ -296,16 +284,16 @@ const TEMPLATES = {
                 </div>
                 <div id="art-excel-crear">
                     <p class="hint">Descargá la plantilla, completala y subila acá.</p>
-                    <button class="small secondary" onclick="descargarPlantilla('articulos')">Descargar plantilla Excel</button>
-                    <div class="file-drop" onclick="document.getElementById('art-file').click()">Click para elegir archivo .xlsx</div>
-                    <input type="file" id="art-file" accept=".xlsx" style="display:none" onchange="cargarExcelArticulos(this, 'articulos')">
+                    <button class="small secondary" data-onclick="descargarPlantilla('articulos')">Descargar plantilla Excel</button>
+                    <div class="file-drop" data-onclick="document.getElementById('art-file').click()">Click para elegir archivo .xlsx</div>
+                    <input type="file" id="art-file" accept=".xlsx" style="display:none" data-onchange="cargarExcelArticulos(this, 'articulos')">
                     <div class="resultados-tabla" id="art-excel-resultados"></div>
                 </div>
                 <div id="art-excel-modificar" style="display:none">
                     <p class="hint">Incluí el ID del artículo a modificar (lo ves en Consultar Stock).</p>
-                    <button class="small secondary" onclick="descargarPlantilla('articulos_modificar')">Descargar plantilla Excel</button>
-                    <div class="file-drop" onclick="document.getElementById('art-file-mod').click()">Click para elegir archivo .xlsx</div>
-                    <input type="file" id="art-file-mod" accept=".xlsx" style="display:none" onchange="cargarExcelArticulos(this, 'articulos_modificar')">
+                    <button class="small secondary" data-onclick="descargarPlantilla('articulos_modificar')">Descargar plantilla Excel</button>
+                    <div class="file-drop" data-onclick="document.getElementById('art-file-mod').click()">Click para elegir archivo .xlsx</div>
+                    <input type="file" id="art-file-mod" accept=".xlsx" style="display:none" data-onchange="cargarExcelArticulos(this, 'articulos_modificar')">
                     <div class="resultados-tabla" id="art-excel-mod-resultados"></div>
                 </div>
             </div>
@@ -323,11 +311,11 @@ const TEMPLATES = {
                 </div>
                 <div class="ren-articulos">
                     <label>Buscar depósito</label>
-                    <select id="dep-mod-buscar" onchange="cargarDepositoParaModificar()"><option value="">Elegí un depósito...</option></select>
+                    <select id="dep-mod-buscar" data-onchange="cargarDepositoParaModificar()"><option value="">Elegí un depósito...</option></select>
                     <div id="dep-mod-form" style="display:none">
                         <label>Nombre</label>
                         <input type="text" id="dep-mod-nombre">
-                        <button class="full" onclick="guardarModificacionDeposito()">Guardar Cambios</button>
+                        <button class="full" data-onclick="guardarModificacionDeposito()" data-perm="stock.editar">Guardar Cambios</button>
                     </div>
                 </div>
             </div>
@@ -450,7 +438,7 @@ const TEMPLATES = {
                         <label>Aplicar a <span style="color:var(--err);font-size:11px">* obligatorio</span></label>
                         <div id="cotizacionesCheckboxes" style="display:flex;gap:6px;padding-top:8px;flex-wrap:wrap;"></div>
                     </div>
-                    <button class="btn-primary" onclick="guardarCotizacion()">Guardar</button>
+                    <button class="btn-primary" data-onclick="guardarCotizacion()" data-perm="cotizaciones.crear">Guardar</button>
                 </div>
 
                 <div style="border-top:1px solid var(--border);padding-top:14px;margin-top:4px">
@@ -458,10 +446,10 @@ const TEMPLATES = {
                         <div class="card-title" style="margin-bottom:0">O importar desde Excel</div>
                         <a href="/api/cotizaciones/plantilla" download="plantilla_cotizaciones.xlsx" style="font-size:12px;color:var(--primary);text-decoration:none">⬇ Descargar plantilla</a>
                     </div>
-                    <p style="font-size:12px;color:var(--ink-soft);margin-bottom:10px">Columna A: Fecha (DD/MM/AAAA) · Columna B: Cotización (separador decimal: coma)</p>
+                    <p style="font-size:12px;color:var(--ink-soft);margin-bottom:10px">Columna A: Fecha (DD/MM/AAAA) · Columna B: Cotización (separador decimal: coma) · Columna C: <b>País (opcional)</b> — sigla del país (RD, AR, UY…). Si la dejás vacía se usan los países tildados arriba.</p>
                     <div style="display:flex;gap:10px;align-items:center">
                         <input type="file" id="cotiExcel" accept=".xlsx,.xls" style="font-size:13px">
-                        <button class="btn-secondary" onclick="importarExcelCoti()">Importar</button>
+                        <button class="btn-secondary" data-onclick="importarExcelCoti()" data-perm="cotizaciones.crear">Importar</button>
                     </div>
                     <div id="cotiPreview" style="margin-top:12px;display:none"></div>
                 </div>
@@ -477,31 +465,20 @@ const TEMPLATES = {
    reportes: `
 <!-- REPORTES -->
 <div id="modulo-reportes" class="modulo-content" style="display:block;">
-    <div class="reportes-header">
-        <h2>📊 Reportes</h2>
-        <p style="color:#64748b;">Seleccioná un reporte desde el menú lateral</p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
-            <button id="btn-cargar-venta-manual" onclick="abrirModalVentaManual()" style="display:none;padding:6px 16px;background:#8b5cf6;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;">
-                ✏️ Cargar Venta Manual
-            </button>
-            <button id="btn-admin-ventas-manuales" onclick="abrirAdminVentasManuales()" style="display:none;padding:6px 16px;background:#2563eb;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;">
-                📋 Administrar Ventas Manuales
-            </button>
-        </div>
-    </div>
+    
     
     <!-- ===== REPORTE: PENDIENTE DE FACTURAR (CON FILTROS) ===== -->
     <div id="reporte-contratos" class="reporte-container active">
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px;padding:12px 16px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;">
             <div style="display:flex;align-items:center;gap:6px;">
                 <label style="font-size:12px;font-weight:500;color:#475569;">Año:</label>
-                <select id="filtro-anio" onchange="ejecutarReporte()" style="padding:4px 12px;border:1px solid #d1d5db;border-radius:4px;font-size:13px;background:white;cursor:pointer;min-width:100px;">
+                <select id="filtro-anio" data-onchange="ejecutarReporte()" style="padding:4px 12px;border:1px solid #d1d5db;border-radius:4px;font-size:13px;background:white;cursor:pointer;min-width:100px;">
                     <option value="">Cargando...</option>
                 </select>
             </div>
             <div style="display:flex;align-items:center;gap:6px;">
                 <label style="font-size:12px;font-weight:500;color:#475569;">Mes:</label>
-                <select id="filtro-mes" onchange="ejecutarReporte()" style="padding:4px 12px;border:1px solid #d1d5db;border-radius:4px;font-size:13px;background:white;cursor:pointer;min-width:100px;">
+                <select id="filtro-mes" data-onchange="ejecutarReporte()" style="padding:4px 12px;border:1px solid #d1d5db;border-radius:4px;font-size:13px;background:white;cursor:pointer;min-width:100px;">
                     <option value="">Todos</option>
                     <option value="1">Enero</option>
                     <option value="2">Febrero</option>
@@ -517,8 +494,8 @@ const TEMPLATES = {
                     <option value="12">Diciembre</option>
                 </select>
             </div>
-            <button onclick="ejecutarReporte()" style="padding:6px 16px;background:#2563eb;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;">🔍 Ejecutar</button>
-            <button onclick="exportarExcel()" style="padding:6px 16px;background:#16a34a;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;">📥 Exportar</button>
+            <button data-onclick="ejecutarReporte()" style="padding:6px 16px;background:#2563eb;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;">🔍 Ejecutar</button>
+            <button data-onclick="exportarExcel()" style="padding:6px 16px;background:#16a34a;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;">📥 Exportar</button>
         </div>
         
         <div id="resumen-moneda"></div>
@@ -531,10 +508,10 @@ const TEMPLATES = {
                 📋 Ver detalle por moneda:
             </div>
             <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                <button class="btn-moneda active" data-moneda="PS" onclick="cambiarMoneda('PS')" style="padding:8px 24px; border-radius:8px; border:2px solid #2563eb; background:#2563eb; color:white; font-weight:600; cursor:pointer; transition:all 0.2s ease; box-shadow:0 2px 4px rgba(37,99,235,0.3);">
+                <button class="btn-moneda active" data-moneda="PS" data-onclick="cambiarMoneda('PS')" style="padding:8px 24px; border-radius:8px; border:2px solid #2563eb; background:#2563eb; color:white; font-weight:600; cursor:pointer; transition:all 0.2s ease; box-shadow:0 2px 4px rgba(37,99,235,0.3);">
                     🇩🇴 PS
                 </button>
-                <button class="btn-moneda" data-moneda="DL" onclick="cambiarMoneda('DL')" style="padding:8px 24px; border-radius:8px; border:2px solid #16a34a; background:white; color:#16a34a; font-weight:600; cursor:pointer; transition:all 0.2s ease;">
+                <button class="btn-moneda" data-moneda="DL" data-onclick="cambiarMoneda('DL')" style="padding:8px 24px; border-radius:8px; border:2px solid #16a34a; background:white; color:#16a34a; font-weight:600; cursor:pointer; transition:all 0.2s ease;">
                     💵 DL
                 </button>
             </div>
@@ -556,11 +533,11 @@ const TEMPLATES = {
 </div>
 
 <!-- ===== MODAL VENTAS MANUALES (CON DOS IMPORTES) ===== -->
-<div id="modal-venta-manual" onclick="cerrarModalVentaManual()" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;cursor:pointer;">
-    <div onclick="event.stopPropagation()" style="background:#fff;border-radius:12px;padding:24px;max-width:600px;width:95%;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);cursor:default;">
+<div id="modal-venta-manual" data-onclick="cerrarModalVentaManual()" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;cursor:pointer;">
+    <div data-onclick="event.stopPropagation()" style="background:#fff;border-radius:12px;padding:24px;max-width:600px;width:95%;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);cursor:default;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
             <h3 style="margin:0;">✏️ Cargar Venta Manual</h3>
-            <button onclick="cerrarModalVentaManual()" style="background:transparent;border:none;font-size:24px;cursor:pointer;color:#333;font-weight:bold;">✕</button>
+            <button data-onclick="cerrarModalVentaManual()" style="background:transparent;border:none;font-size:24px;cursor:pointer;color:#333;font-weight:bold;">✕</button>
         </div>
         <form id="vm-form">
             <div style="display:grid;gap:12px;">
@@ -606,17 +583,17 @@ const TEMPLATES = {
                     <input type="text" id="vm-comentario" placeholder="Motivo o detalle" style="width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:4px;">
                 </div>
                 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                    <button type="button" onclick="guardarVentaManual()" style="flex:1;padding:8px;background:#2563eb;color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer;">Guardar</button>
-                    <button type="button" onclick="cerrarModalVentaManual()" style="flex:1;padding:8px;background:#e5e7eb;color:#1f2937;border:none;border-radius:6px;cursor:pointer;">Cancelar</button>
+                    <button type="button" data-onclick="guardarVentaManual()" style="flex:1;padding:8px;background:#2563eb;color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer;" data-perm="reportes.crear">Guardar</button>
+                    <button type="button" data-onclick="cerrarModalVentaManual()" style="flex:1;padding:8px;background:#e5e7eb;color:#1f2937;border:none;border-radius:6px;cursor:pointer;">Cancelar</button>
                 </div>
                 <div style="border-top:1px solid #e2e8f0;padding-top:12px;margin-top:4px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;">
                         <label style="font-weight:500;font-size:13px;">📤 Importar desde Excel/CSV</label>
-                        <button onclick="descargarPlantillaVentasManuales()" style="padding:3px 12px;background:#8b5cf6;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px;">📥 Descargar plantilla</button>
+                        <button data-onclick="descargarPlantillaVentasManuales()" style="padding:3px 12px;background:#8b5cf6;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px;">📥 Descargar plantilla</button>
                     </div>
                     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
                         <input type="file" id="vm-import-file" accept=".xlsx,.xls,.csv" style="font-size:12px;flex:1;">
-                        <button type="button" id="btn-importar-ventas" onclick="procesarImportacionVentas()" style="padding:6px 16px;background:#16a34a;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:500;">📤 Importar</button>
+                        <button type="button" id="btn-importar-ventas" data-onclick="procesarImportacionVentas()" style="padding:6px 16px;background:#16a34a;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:500;" data-perm="reportes.importar">📤 Importar</button>
                     </div>
                     <div style="font-size:11px;color:#64748b;margin-top:4px;">Columnas requeridas: base, anio, mes, pais, fecha_registro. Opcionales: sociedad, centro_costo, importe_usd, importe_ps, comentario.</div>
                 </div>
@@ -626,16 +603,16 @@ const TEMPLATES = {
 </div>
 
 <!-- ===== MODAL ADMINISTRACIÓN VENTAS MANUALES (CON X VISIBLE) ===== -->
-<div id="modal-admin-ventas-manuales" onclick="cerrarAdminVentasManuales()" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;cursor:pointer;">
-    <div onclick="event.stopPropagation()" style="background:#fff;border-radius:12px;padding:24px;max-width:900px;width:95%;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);cursor:default;">
+<div id="modal-admin-ventas-manuales" data-onclick="cerrarAdminVentasManuales()" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;cursor:pointer;">
+    <div data-onclick="event.stopPropagation()" style="background:#fff;border-radius:12px;padding:24px;max-width:900px;width:95%;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);cursor:default;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
             <h3 style="margin:0;">📋 Ventas Manuales Cargadas</h3>
-            <button onclick="cerrarAdminVentasManuales()" style="background:transparent;border:none;font-size:24px;cursor:pointer;color:#333;font-weight:bold;">✕</button>
+            <button data-onclick="cerrarAdminVentasManuales()" style="background:transparent;border:none;font-size:24px;cursor:pointer;color:#333;font-weight:bold;">✕</button>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
             <div style="display:flex;align-items:center;gap:4px;">
                 <label style="font-size:12px;">Año:</label>
-                <select id="admin-filtro-anio" onchange="cargarListaVentasManuales()" style="padding:2px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;">
+                <select id="admin-filtro-anio" data-onchange="cargarListaVentasManuales()" style="padding:2px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;">
                     <option value="">Todos</option>
                     <option value="2025">2025</option>
                     <option value="2026" selected>2026</option>
@@ -644,7 +621,7 @@ const TEMPLATES = {
             </div>
             <div style="display:flex;align-items:center;gap:4px;">
                 <label style="font-size:12px;">Mes:</label>
-                <select id="admin-filtro-mes" onchange="cargarListaVentasManuales()" style="padding:2px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;">
+                <select id="admin-filtro-mes" data-onchange="cargarListaVentasManuales()" style="padding:2px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;">
                     <option value="">Todos</option>
                     <option value="1">Ene</option><option value="2">Feb</option><option value="3">Mar</option>
                     <option value="4">Abr</option><option value="5">May</option><option value="6">Jun</option>
@@ -652,7 +629,7 @@ const TEMPLATES = {
                     <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dic</option>
                 </select>
             </div>
-            <button onclick="cargarListaVentasManuales()" style="padding:3px 12px;background:#2563eb;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px;">🔍 Filtrar</button>
+            <button data-onclick="cargarListaVentasManuales()" style="padding:3px 12px;background:#2563eb;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px;">🔍 Filtrar</button>
         </div>
         <div style="overflow-x:auto;max-height:400px;overflow-y:auto;">
             <table style="width:100%;border-collapse:collapse;font-size:12px;">
@@ -675,7 +652,7 @@ const TEMPLATES = {
             </table>
         </div>
         <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;">
-            <button onclick="cerrarAdminVentasManuales()" style="padding:6px 16px;background:#e5e7eb;color:#1f2937;border:none;border-radius:6px;cursor:pointer;">Cerrar</button>
+            <button data-onclick="cerrarAdminVentasManuales()" style="padding:6px 16px;background:#e5e7eb;color:#1f2937;border:none;border-radius:6px;cursor:pointer;">Cerrar</button>
         </div>
     </div>
 </div>
@@ -732,12 +709,12 @@ function inicializarModulo(modulo) {
         switch(modulo) {
             case 'stock':
                 // 🔴 RESTAURAR LA ÚLTIMA SECCIÓN DE STOCK GUARDADA
+                // cargarSelectsStock() es idempotente: si las caches ya están
+                // cargadas (arranque) re-aplica las opciones al DOM del módulo
+                // recién montado — sin esto los combos de stock ("Elegí un
+                // artículo/depósito...") quedaban vacíos para siempre.
                 if (typeof cargarSelectsStock === 'function') {
-                    if (window.stockSelectsCargados) {
-                        console.log('ℹ️ Selects de stock ya cargados, omitiendo...');
-                    } else {
-                        cargarSelectsStock();
-                    }
+                    cargarSelectsStock();
                 }
                 // Recuperar última sección de stock
                 try {
@@ -966,6 +943,5 @@ function mostrarSeccionActiva(modulo) {
 
 window.cargarTemplate = cargarTemplate;
 window.generarCheckboxesCotizaciones = generarCheckboxesCotizaciones;
-window.escapeHTML = escapeHTML;
 
 console.log('✅ templates.js cargado (XSS sanitizado, con persistencia de secciones)');

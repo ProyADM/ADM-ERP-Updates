@@ -26,18 +26,6 @@ function formatearNumero(valor) {
 // SANITIZAR HTML
 // ============================================================
 
-function escapeHTML(str) {
-    if (!str) return '';
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return String(str).replace(/[&<>"']/g, function(m) { return map[m]; });
-}
-
 // ============================================================
 // CARGAR AÑOS DISPONIBLES (UNA SOLA VEZ)
 // ============================================================
@@ -218,7 +206,7 @@ export async function cargarConsolidadoPais() {
         if (!data.success || data.error) {
             const errorHtml = `
                 <div style="color:#dc2626;padding:20px;text-align:center;border:1px solid #fecaca;border-radius:8px;background:#fef2f2;">
-                    ❌ ${data.error || 'Error al cargar datos'}
+                    ❌ ${escapeHTML(data.error || 'Error al cargar datos')}
                 </div>
             `;
             resultadosDiv.innerHTML = errorHtml;
@@ -302,10 +290,10 @@ function generarVistaCompleta(data) {
 
         <!-- TABS -->
         <div style="display:flex;gap:4px;margin-bottom:12px;border-bottom:2px solid #e2e8f0;flex-wrap:wrap;">
-            <button class="tab-pais active" data-tab="cliente" onclick="window.mostrarTabPais('cliente')" style="padding:8px 20px;border:none;background:#2563eb;color:white;border-radius:8px 8px 0 0;font-weight:600;cursor:pointer;font-size:13px;transition:all 0.2s;">
+            <button class="tab-pais active" data-tab="cliente" data-onclick="window.mostrarTabPais('cliente')" style="padding:8px 20px;border:none;background:#2563eb;color:white;border-radius:8px 8px 0 0;font-weight:600;cursor:pointer;font-size:13px;transition:all 0.2s;">
                 👤 Por Cliente
             </button>
-            <button class="tab-pais" data-tab="centro" onclick="window.mostrarTabPais('centro')" style="padding:8px 20px;border:none;background:transparent;color:#64748b;border-radius:8px 8px 0 0;font-weight:500;cursor:pointer;font-size:13px;transition:all 0.2s;">
+            <button class="tab-pais" data-tab="centro" data-onclick="window.mostrarTabPais('centro')" style="padding:8px 20px;border:none;background:transparent;color:#64748b;border-radius:8px 8px 0 0;font-weight:500;cursor:pointer;font-size:13px;transition:all 0.2s;">
                 📂 Por Centro Costo
             </button>
         </div>
@@ -383,9 +371,9 @@ function generarTablaPivot(datos, grupo) {
 
     let html = `
         <div style="background:white;border-radius:10px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,0.04);">
-            <div style="overflow-x:auto;max-height:500px;overflow-y:auto;">
+            <div style="overflow-x:auto;">
                 <table style="width:100%;border-collapse:collapse;font-size:13px;">
-                    <thead style="position:sticky;top:0;background:#f8fafc;border-bottom:2px solid #e2e8f0;z-index:2;">
+                    <thead style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">
                         <tr>
                             <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569;min-width:150px;background:#f8fafc;">${nombreColumna}</th>
     `;
@@ -402,6 +390,10 @@ function generarTablaPivot(datos, grupo) {
                     <tbody>
     `;
 
+    // 🔴 DOS PASADAS para que "% Part." use el TOTAL FINAL como denominador.
+    // (Antes se calculaba contra un totalGeneral parcial que crecía dentro del
+    // mismo bucle de render → porcentajes incorrectos: no sumaban 100.)
+    const filasConTotal = [];
     entidades.forEach(entidad => {
         const fila = grupos[entidad].meses;
         let totalFila = 0;
@@ -412,13 +404,17 @@ function generarTablaPivot(datos, grupo) {
 
         if (totalFila === 0) return;
 
+        filasConTotal.push({ entidad, fila, totalFila });
         totalGeneral += totalFila;
         mesesOrdenados.forEach(m => {
             totalPorMes[m] += (fila[m] || 0);
         });
+    });
 
-        const bg = entidades.indexOf(entidad) % 2 === 0 ? '#fafafa' : 'transparent';
+    filasConTotal.forEach((item, i) => {
+        const { entidad, fila, totalFila } = item;
         const porcentajeFila = totalGeneral > 0 ? (totalFila / totalGeneral * 100) : 0;
+        const bg = i % 2 === 0 ? '#fafafa' : 'transparent';
 
         html += `
             <tr style="border-bottom:1px solid #f1f5f9;background:${bg};">
