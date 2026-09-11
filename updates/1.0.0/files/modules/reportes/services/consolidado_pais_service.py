@@ -1,24 +1,87 @@
 # modules/reportes/services/consolidado_pais_service.py
 # ============================================================
 # SERVICIO: CONSOLIDADO VENTAS POR PAÍS
+# Ventas = líneas de las cuentas 410101/410102 (definición en ventas_cuentas.py):
+# sin filtro de subdiario y excluyendo intercompany (tipo de cliente 5 O nombre
+# SIDESYS), en lugar de "sólo subdiario VTA con líneas analíticas".
+# Conversión a USD: MISMA regla que Ventas Globales (ventas_cuentas.a_usd).
 # ============================================================
 
 import pandas as pd
 import logging
-from .utils import get_db_connection, get_db_connection_base, limpiar_datos
+from .utils import get_db_connection, get_db_connection_base, limpiar_datos, obtener_cotizacion_por_mes
+from .ventas_cuentas import (
+    cuentas_sql,
+    join_ventas,
+    filtro_intercompany,
+    param_intercompany,
+    apply_cliente,
+    apply_analitica,
+    rango_fechas,
+    a_usd,
+)
 from config import BASES_DISPONIBLES
 
 logger = logging.getLogger(__name__)
 
+# Nombre de país que se muestra en el informe, por base.
+NOMBRE_PAIS = {
+    'plataforma': 'Argentina',
+    'plataforma_rd': 'República Dominicana',
+    'plataforma_uy': 'Uruguay',
+    'plataforma_ur': 'Uruguay',
+    'plataforma_hn': 'Honduras',
+    'plataforma_gt': 'Guatemala',
+    'plataforma_co': 'Colombia',
+    'plataforma_pe': 'Perú',
+    'plataforma_py': 'Paraguay',
+    'plataforma_ec': 'Ecuador',
+    'plataforma_mx': 'México',
+    'plataforma_cr': 'Costa Rica',
+}
+
+
+def _num(valor):
+    """float seguro: None / NaN / basura -> 0.0"""
+    try:
+        numero = float(valor)
+    except (TypeError, ValueError):
+        return 0.0
+    return 0.0 if numero != numero else numero  # NaN != NaN
+
+
+def importe_dl_detalle(df, anio, db_name):
+    """Convierte cada línea del detalle a USD con la MISMA regla que
+    Ventas Globales (ventas_cuentas.a_usd).
+
+    Se usa la cotización del mes de la línea; dividir línea por línea da el mismo
+    total que dividir el acumulado del mes, así el detalle y el total del informe
+    coinciden con Ventas Globales para el mismo país y año.
+    """
+    es_ecuador = db_name == 'plataforma_ec'
+    if df.empty:
+        return []
+
+    meses = sorted({int(m) for m in df['MES'].dropna().unique()})
+    cotizaciones = {}
+    for mes in meses:
+        cotizaciones[mes] = None if es_ecuador else obtener_cotizacion_por_mes(
+            anio, mes, base_referencia=db_name)
+
+    resultado = []
+    for local, conversion, signo, mes in zip(df['IMPORTE_LOCAL'], df['IMPORTE_CONVERSION'],
+                                             df['SIGNO'], df['MES']):
+        factor = -1.0 if str(signo).strip().upper() == 'D' else 1.0
+        local_firmado = _num(local) * factor
+        conversion_firmada = _num(conversion) * factor
+        cotizacion = cotizaciones.get(int(mes)) if pd.notna(mes) else None
+        resultado.append(a_usd(local_firmado, conversion_firmada, cotizacion,
+                               es_ecuador=es_ecuador))
+    return resultado
+
+
 def obtener_consolidado_pais(anio, base_override=None, sociedad_override=None):
     try:
-        # Lista de clientes intercompany a excluir
-        paises_excluir = [
-            'SIDESYS COLOMBIA', 'SIDESYS COSTA RICA', 'SIDESYS ECUADOR',
-            'SIDESYS GUATEMALA', 'SIDESYS HONDURAS', 'SIDESYS MEXICO', 'SIDESYS PARAGUAY'
-        ]
-        placeholders = ','.join(['?'] * len(paises_excluir))
-
         if base_override:
             bases_a_consultar = {base_override: BASES_DISPONIBLES.get(base_override, {})}
         else:
@@ -28,144 +91,49 @@ def obtener_consolidado_pais(anio, base_override=None, sociedad_override=None):
 
         for db_name, db_info in bases_a_consultar.items():
             try:
-                conn = None
+                # Argentina tiene las divisiones 1 y 2 en la misma base
                 if db_name == 'plataforma':
                     conn, _ = get_db_connection_base('plataforma')
-                    query = f"""
-                    SELECT 
-                        a.AASI_DIVISION,
-                        a.AASI_IMP_LOC AS IMPORTE_LOCAL,
-                        a.AASI_IMP_CON AS IMPORTE_CONVERSION,
-                        a.AASI_SIGNO,
-                        MAX(c.CASI_FECHA) AS FECHA,
-                        MAX(i.IMAE_DESCRIPCION2) AS CC_CLIENTE,
-                        MAX(i.IMAE_DESCRIPCION3) AS CENTRO_COSTO,
-                        MAX(c.CASI_SUBDIARIO) AS SUBDIARIO,
-                        MAX(cl.CLIE_NOMBRE) AS CLIE_NOMBRE,
-                        YEAR(MAX(c.CASI_FECHA)) AS AÑO,
-                        MONTH(MAX(c.CASI_FECHA)) AS MES,
-                        CASE 
-                            WHEN a.AASI_SIGNO = 'D' THEN -a.AASI_IMP_CON
-                            WHEN a.AASI_SIGNO = 'H' THEN a.AASI_IMP_CON
-                            ELSE a.AASI_IMP_CON
-                        END AS IMPORTE_DL,
-                        'Argentina' AS PAIS
-                    FROM SIST_AASI a
-                    LEFT JOIN CONT_IMAE i ON a.AASI_MAESTRO = i.IMAE_MAESTRO AND a.AASI_INSTANCIA = i.IMAE_INSTANCIA
-                    LEFT JOIN SIST_CASI c ON a.AASI_ASIENTO = c.CASI_ASIENTO
-                    LEFT JOIN CCOB_RACC ra ON c.CASI_ASIENTO = ra.RACC_ASIENTO
-                    LEFT JOIN CCOB_CTEC ct ON ra.RACC_CTACTE_CTEC = ct.CTEC_CTACTE_CTEC
-                    LEFT JOIN CCOB_CLIE cl ON ct.CTEC_CLIENTE = cl.CLIE_CLIENTE
-                    WHERE a.AASI_DIVISION IN (1, 2)
-                      AND c.CASI_SUBDIARIO = 'VTA'
-                      AND cl.CLIE_NOMBRE NOT IN ({placeholders})
-                      AND YEAR(c.CASI_FECHA) = ?
-                      AND EXISTS (
-                          SELECT 1 FROM SIST_RASI r 
-                          WHERE r.RASI_ASIENTO = a.AASI_ASIENTO 
-                            AND r.RASI_CUENTA IN ('410101', '410102')
-                      )
-                    GROUP BY 
-                        a.AASI_DIVISION,
-                        a.AASI_IMP_LOC,
-                        a.AASI_IMP_CON,
-                        a.AASI_SIGNO,
-                        a.AASI_ASIENTO,
-                        a.AASI_RENGLON_ASI,
-                        a.AASI_RENGLON_APE,
-                        CASE 
-                            WHEN a.AASI_SIGNO = 'D' THEN -a.AASI_IMP_CON
-                            WHEN a.AASI_SIGNO = 'H' THEN a.AASI_IMP_CON
-                            ELSE a.AASI_IMP_CON
-                        END
-                    ORDER BY MAX(c.CASI_FECHA) DESC
-                    """
-                    df = pd.read_sql(query, conn, params=paises_excluir + [anio])
-                    conn.close()
-                    if not df.empty:
-                        all_dfs.append(df)
-                    continue
-
-                es_ecuador = db_name == 'plataforma_ec'
-                campo_importe = "a.AASI_IMP_LOC" if es_ecuador else "a.AASI_IMP_CON"
-
-                nombre_pais = db_info.get('label', db_name)
-                if db_name == 'plataforma_ec':
-                    nombre_pais = 'Ecuador'
-                elif db_name == 'plataforma_rd':
-                    nombre_pais = 'República Dominicana'
-                elif db_name == 'plataforma_mx':
-                    nombre_pais = 'México'
-                elif db_name == 'plataforma_gt':
-                    nombre_pais = 'Guatemala'
-                elif db_name == 'plataforma_hn':
-                    nombre_pais = 'Honduras'
-                elif db_name == 'plataforma_cr':
-                    nombre_pais = 'Costa Rica'
-                elif db_name == 'plataforma_pe':
-                    nombre_pais = 'Perú'
-                elif db_name == 'plataforma_py':
-                    nombre_pais = 'Paraguay'
-                elif db_name == 'plataforma_co':
-                    nombre_pais = 'Colombia'
-                elif db_name == 'plataforma_uy':
-                    nombre_pais = 'Uruguay'
-
-                if not conn:
+                    division_cond = "c.CASI_DIVISION IN (1, 2)"
+                    params_division = []
+                else:
                     conn, division = get_db_connection_base(db_name)
+                    division_cond = "c.CASI_DIVISION = ?"
+                    params_division = [division]
+
+                nombre_pais = NOMBRE_PAIS.get(db_name) or db_info.get('label', db_name)
+                desde, hasta = rango_fechas(anio)
 
                 query = f"""
-                SELECT 
-                    a.AASI_DIVISION,
-                    a.AASI_IMP_LOC AS IMPORTE_LOCAL,
-                    a.AASI_IMP_CON AS IMPORTE_CONVERSION,
-                    a.AASI_SIGNO,
-                    MAX(c.CASI_FECHA) AS FECHA,
-                    MAX(i.IMAE_DESCRIPCION2) AS CC_CLIENTE,
-                    MAX(i.IMAE_DESCRIPCION3) AS CENTRO_COSTO,
-                    MAX(c.CASI_SUBDIARIO) AS SUBDIARIO,
-                    MAX(cl.CLIE_NOMBRE) AS CLIE_NOMBRE,
-                    YEAR(MAX(c.CASI_FECHA)) AS AÑO,
-                    MONTH(MAX(c.CASI_FECHA)) AS MES,
-                    CASE 
-                        WHEN a.AASI_SIGNO = 'D' THEN -{campo_importe}
-                        WHEN a.AASI_SIGNO = 'H' THEN {campo_importe}
-                        ELSE {campo_importe}
-                    END AS IMPORTE_DL,
-                    '{nombre_pais}' AS PAIS
-                FROM SIST_AASI a
-                LEFT JOIN CONT_IMAE i ON a.AASI_MAESTRO = i.IMAE_MAESTRO AND a.AASI_INSTANCIA = i.IMAE_INSTANCIA
-                LEFT JOIN SIST_CASI c ON a.AASI_ASIENTO = c.CASI_ASIENTO
-                LEFT JOIN CCOB_RACC ra ON c.CASI_ASIENTO = ra.RACC_ASIENTO
-                LEFT JOIN CCOB_CTEC ct ON ra.RACC_CTACTE_CTEC = ct.CTEC_CTACTE_CTEC
-                LEFT JOIN CCOB_CLIE cl ON ct.CTEC_CLIENTE = cl.CLIE_CLIENTE
-                WHERE a.AASI_DIVISION = ?
-                  AND c.CASI_SUBDIARIO = 'VTA'
-                  AND cl.CLIE_NOMBRE NOT IN ({placeholders})
-                  AND YEAR(c.CASI_FECHA) = ?
-                  AND EXISTS (
-                      SELECT 1 FROM SIST_RASI r 
-                      WHERE r.RASI_ASIENTO = a.AASI_ASIENTO 
-                        AND r.RASI_CUENTA IN ('410101', '410102')
-                  )
-                GROUP BY 
-                    a.AASI_DIVISION,
-                    a.AASI_IMP_LOC,
-                    a.AASI_IMP_CON,
-                    a.AASI_SIGNO,
-                    a.AASI_ASIENTO,
-                    a.AASI_RENGLON_ASI,
-                    a.AASI_RENGLON_APE,
-                    CASE 
-                        WHEN a.AASI_SIGNO = 'D' THEN -{campo_importe}
-                        WHEN a.AASI_SIGNO = 'H' THEN {campo_importe}
-                        ELSE {campo_importe}
-                    END
-                ORDER BY MAX(c.CASI_FECHA) DESC
+                SELECT
+                    c.CASI_DIVISION AS DIVISION,
+                    r.RASI_IMP_LOC AS IMPORTE_LOCAL,
+                    r.RASI_IMP_CON AS IMPORTE_CONVERSION,
+                    r.RASI_SIGNO AS SIGNO,
+                    c.CASI_FECHA AS FECHA,
+                    an.CC_CLIENTE AS CC_CLIENTE,
+                    an.CENTRO_COSTO AS CENTRO_COSTO,
+                    c.CASI_SUBDIARIO AS SUBDIARIO,
+                    cli.CLIE_NOMBRE AS CLIE_NOMBRE,
+                    YEAR(c.CASI_FECHA) AS AÑO,
+                    MONTH(c.CASI_FECHA) AS MES
+                {join_ventas()}
+                {apply_cliente()}
+                {apply_analitica()}
+                WHERE {division_cond}
+                  AND r.RASI_CUENTA IN ({cuentas_sql()})
+                  AND c.CASI_FECHA >= ? AND c.CASI_FECHA < ?
+                  {filtro_intercompany()}
+                ORDER BY c.CASI_FECHA DESC
                 """
-                df = pd.read_sql(query, conn, params=[division] + paises_excluir + [anio])
+                params = params_division + [desde, hasta] + param_intercompany()
+
+                df = pd.read_sql(query, conn, params=params)
                 conn.close()
                 if not df.empty:
+                    df['PAIS'] = nombre_pais
+                    # IMPORTE_DL se calcula con la MISMA regla que Ventas Globales
+                    df['IMPORTE_DL'] = importe_dl_detalle(df, anio, db_name)
                     all_dfs.append(df)
             except Exception as e:
                 logger.warning(f"No se pudo consultar la base {db_name}: {e}")
@@ -198,7 +166,7 @@ def obtener_consolidado_pais(anio, base_override=None, sociedad_override=None):
             'IMPORTE_LOCAL': 'sum',
             'IMPORTE_CONVERSION': 'sum',
             'IMPORTE_DL': 'sum',
-            'AASI_DIVISION': 'count'
+            'DIVISION': 'count'
         }).reset_index()
         resumen_cliente.columns = ['Cliente', 'Total_Local', 'Total_USD', 'Total_DL', 'Transacciones']
         resumen_cliente = resumen_cliente.sort_values('Total_DL', ascending=False)
@@ -207,7 +175,7 @@ def obtener_consolidado_pais(anio, base_override=None, sociedad_override=None):
             'IMPORTE_LOCAL': 'sum',
             'IMPORTE_CONVERSION': 'sum',
             'IMPORTE_DL': 'sum',
-            'AASI_DIVISION': 'count'
+            'DIVISION': 'count'
         }).reset_index()
         resumen_centro.columns = ['Centro_Costo', 'Total_Local', 'Total_USD', 'Total_DL', 'Transacciones']
         resumen_centro = resumen_centro.sort_values('Total_DL', ascending=False)
@@ -216,7 +184,7 @@ def obtener_consolidado_pais(anio, base_override=None, sociedad_override=None):
             'IMPORTE_LOCAL': 'sum',
             'IMPORTE_CONVERSION': 'sum',
             'IMPORTE_DL': 'sum',
-            'AASI_DIVISION': 'count'
+            'DIVISION': 'count'
         }).reset_index()
         resumen_subdiario.columns = ['Subdiario', 'Total_Local', 'Total_USD', 'Total_DL', 'Transacciones']
         resumen_subdiario = resumen_subdiario.sort_values('Total_DL', ascending=False)
@@ -232,7 +200,7 @@ def obtener_consolidado_pais(anio, base_override=None, sociedad_override=None):
                 fecha_str = str(fecha_val)
 
             detalle.append({
-                'Division': int(row.get('AASI_DIVISION', 0)) if pd.notna(row.get('AASI_DIVISION', 0)) else 0,
+                'Division': int(row.get('DIVISION', 0)) if pd.notna(row.get('DIVISION', 0)) else 0,
                 'Pais': str(row.get('PAIS', 'República Dominicana')),
                 'Cliente': str(row.get('CC_CLIENTE', 'SIN CLIENTE')),
                 'NombreCliente': str(row.get('CLIE_NOMBRE', 'SIN NOMBRE')),
@@ -240,7 +208,7 @@ def obtener_consolidado_pais(anio, base_override=None, sociedad_override=None):
                 'Fecha': fecha_str,
                 'Anio': int(row.get('AÑO', 0)) if pd.notna(row.get('AÑO', 0)) else 0,
                 'Mes': int(row.get('MES', 0)) if pd.notna(row.get('MES', 0)) else 0,
-                'Signo': str(row.get('AASI_SIGNO', '')),
+                'Signo': str(row.get('SIGNO', '')),
                 'Subdiario': str(row.get('SUBDIARIO', 'SIN SUBDIARIO')),
                 'Importe_Local': float(row.get('IMPORTE_LOCAL', 0)) if pd.notna(row.get('IMPORTE_LOCAL', 0)) else 0,
                 'Importe_Conversion': float(row.get('IMPORTE_CONVERSION', 0)) if pd.notna(row.get('IMPORTE_CONVERSION', 0)) else 0,

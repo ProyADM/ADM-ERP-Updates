@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "release_date": "2026-09-10 20:38:48",
+  "release_date": "2026-09-11 14:06:55",
   "changelog": [
     "Version base consolidada de ADM-ERP (incluye la remediacion completa de la auditoria de seguridad)",
     "Actualizaciones diferenciales por archivo, firmadas (Ed25519 + SHA-256 por archivo) y con auto-reinicio",

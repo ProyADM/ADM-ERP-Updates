@@ -1,12 +1,22 @@
 # modules/reportes/services/consolidado_total_service.py
 # ============================================================
 # SERVICIO: CONSOLIDADO TOTAL DE VENTAS (GLOBAL)
-# CORREGIDO: usa Importe_Local (AASI_IMP_LOC) para todos los países
+# Ventas = líneas de las cuentas 410101/410102 (definición en ventas_cuentas.py)
+# Importe_Local = RASI_IMP_LOC, Importe_Conversion = RASI_IMP_CON
 # ============================================================
 
 import pandas as pd
 import logging
 from .utils import get_db_connection, get_db_connection_base, limpiar_datos, obtener_cotizacion_por_mes, asegurar_tabla_ventas_manuales
+from .ventas_cuentas import (
+    cuentas_sql,
+    join_ventas,
+    filtro_intercompany,
+    param_intercompany,
+    importe_con_signo,
+    rango_fechas,
+    a_usd,
+)
 from config import BASES_DISPONIBLES
 
 logger = logging.getLogger(__name__)
@@ -77,42 +87,36 @@ def obtener_consolidado_total(anio, base_override=None, sociedad_override=None):
                 if db_name == 'plataforma':
                     conn, division = get_db_connection_base('plataforma')
                     # Argentina tiene divisiones 1 y 2
-                    division_filter = "a.AASI_DIVISION IN (1, 2)"
+                    division_filter = "c.CASI_DIVISION IN (1, 2)"
                 else:
                     conn, division = get_db_connection_base(db_name)
-                    division_filter = "a.AASI_DIVISION = ?"
-                    # Para otros países, usamos ? en la consulta
+                    division_filter = "c.CASI_DIVISION = ?"
 
-                # 🔴 CONSULTA CORREGIDA: Importe_Local = AASI_IMP_LOC, Importe_Conversion = AASI_IMP_CON
+                # 🔴 DEFINICIÓN ÚNICA DE VENTAS (ver services/ventas_cuentas.py):
+                # líneas de las cuentas 410101/410102, sin filtrar por subdiario,
+                # excluyendo intercompany (tipo de cliente 5 O nombre SIDESYS).
+                # Transacciones = cantidad de ASIENTOS (comprobantes), no de líneas.
+                desde, hasta = rango_fechas(anio)
                 query = f"""
-                SELECT 
+                SELECT
                     YEAR(c.CASI_FECHA) AS Anio,
                     MONTH(c.CASI_FECHA) AS Mes,
-                    COUNT(*) AS Transacciones,
-                    SUM(CASE WHEN a.AASI_SIGNO = 'D' THEN -a.AASI_IMP_LOC ELSE a.AASI_IMP_LOC END) AS Importe_Local,
-                    SUM(CASE WHEN a.AASI_SIGNO = 'D' THEN -a.AASI_IMP_CON ELSE a.AASI_IMP_CON END) AS Importe_Conversion
-                FROM SIST_AASI a
-                INNER JOIN SIST_CASI c ON a.AASI_ASIENTO = c.CASI_ASIENTO
-                INNER JOIN CCOB_RACC ra ON c.CASI_ASIENTO = ra.RACC_ASIENTO
-                INNER JOIN CCOB_CTEC ct ON ra.RACC_CTACTE_CTEC = ct.CTEC_CTACTE_CTEC
-                INNER JOIN CCOB_CLIE cl ON ct.CTEC_CLIENTE = cl.CLIE_CLIENTE
+                    COUNT(DISTINCT c.CASI_ASIENTO) AS Transacciones,
+                    SUM({importe_con_signo('RASI_IMP_LOC')}) AS Importe_Local,
+                    SUM({importe_con_signo('RASI_IMP_CON')}) AS Importe_Conversion
+                {join_ventas()}
                 WHERE {division_filter}
-                  AND c.CASI_SUBDIARIO = 'VTA'
-                  AND cl.CLIE_NOMBRE NOT LIKE '%SIDESYS%'
-                  AND YEAR(c.CASI_FECHA) = ?
-                  AND EXISTS (
-                      SELECT 1 FROM SIST_RASI r 
-                      WHERE r.RASI_ASIENTO = a.AASI_ASIENTO 
-                        AND r.RASI_CUENTA IN ('410101', '410102')
-                  )
+                  AND r.RASI_CUENTA IN ({cuentas_sql()})
+                  AND c.CASI_FECHA >= ? AND c.CASI_FECHA < ?
+                  {filtro_intercompany()}
                 GROUP BY YEAR(c.CASI_FECHA), MONTH(c.CASI_FECHA)
                 ORDER BY Anio, Mes
                 """
                 # Para Argentina no usamos ? en división porque ya está en el filtro
                 if db_name == 'plataforma':
-                    params = [anio]
+                    params = [desde, hasta] + param_intercompany()
                 else:
-                    params = [division, anio]
+                    params = [division, desde, hasta] + param_intercompany()
 
                 df = pd.read_sql(query, conn, params=params)
                 conn.close()
@@ -141,19 +145,22 @@ def obtener_consolidado_total(anio, base_override=None, sociedad_override=None):
                     real = real_meses.get(mes, {'transacciones': 0, 'importe_local': 0, 'importe_conversion': 0})
                     total_manual = manuales_por_pais.get(f'{nombre_pais}|{anio}|{mes}', 0)
 
-                    # 🔴 LÓGICA DE CONVERSIÓN CORREGIDA
-                    if db_name == 'plataforma_ec' or sigla == 'EC':
-                        # Ecuador: moneda local ya es USD
-                        importe_usd = real['importe_local']
-                    else:
+                    # 🔴 CONVERSIÓN A USD — MISMA REGLA QUE VENTAS POR PAÍS
+                    # (ventas_cuentas.a_usd): Ecuador ya es USD; con cotización
+                    # del mes se divide el local; sin cotización se usa el
+                    # importe de conversión del comprobante.
+                    es_ecuador = db_name == 'plataforma_ec' or sigla == 'EC'
+                    cotizacion = None
+                    if not es_ecuador:
                         cotizacion = obtener_cotizacion_por_mes(anio, mes, base_referencia=db_name)
                         if cotizacion is not None and cotizacion > 0:
-                            importe_usd = real['importe_local'] / cotizacion
-                            logger.info(f"📊 {nombre_pais} - {mes}/{anio} - Cotización: {cotizacion} - Local: {real['importe_local']} -> USD: {importe_usd}")
+                            logger.info(f"📊 {nombre_pais} - {mes}/{anio} - Cotización: {cotizacion} - Local: {real['importe_local']} -> USD: {real['importe_local'] / cotizacion}")
                         else:
                             # Fallback: usar Importe_Conversion (USD del día) si no hay cotización
                             logger.warning(f"⚠️ Sin cotización para {nombre_pais} - {mes}/{anio}, usando Importe_Conversion: {real['importe_conversion']}")
-                            importe_usd = real['importe_conversion'] if real['importe_conversion'] != 0 else real['importe_local']
+
+                    importe_usd = a_usd(real['importe_local'], real['importe_conversion'],
+                                        cotizacion, es_ecuador=es_ecuador)
 
                     importe_usd += total_manual
 

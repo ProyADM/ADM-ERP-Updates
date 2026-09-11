@@ -88,6 +88,16 @@ def _verificar_metadato_firmado(url, etiqueta):
 # FUNCIÓN PARA OBTENER LA RUTA DE INSTALACIÓN REAL
 # ============================================================
 def obtener_ruta_instalacion():
+    """Ruta real de la instalación: variable de entorno > registro > carpeta de la app.
+
+    `SIDESYS_INSTALL_DIR` sirve para pruebas (redirige el updater a un sandbox sin
+    tocar la instalación real de la PC) y para despliegues con rutas no estándar.
+    El registro lo escribe el instalador (HKCU\\Software\\Sidesys\\ADM-ERP).
+    """
+    override = os.environ.get("SIDESYS_INSTALL_DIR")
+    if override and os.path.isdir(override):
+        print(f"📂 Ruta de instalación (SIDESYS_INSTALL_DIR): {override}")
+        return override
     try:
         key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Sidesys\ADM-ERP")
         path, _ = winreg.QueryValueEx(key, "InstallPath")
