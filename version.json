@@ -1,18 +1,22 @@
 {
   "version": "1.0.0",
-  "release_date": "2026-09-11 14:06:55",
+  "release_date": "2026-09-14 09:49:37",
   "changelog": [
-    "Version base consolidada de ADM-ERP (incluye la remediacion completa de la auditoria de seguridad)",
-    "Actualizaciones diferenciales por archivo, firmadas (Ed25519 + SHA-256 por archivo) y con auto-reinicio",
-    "Instalador con Python incluido: la PC destino no necesita instalar nada",
-    "Control de acceso por rol y por base en todos los modulos de negocio",
-    "Login remoto por usuario/contrasena contra Windows/AD",
-    "Exportacion real a .xlsx en reportes y plantillas"
+    "Panel de administración de usuarios, roles y permisos dentro del ERP (pestaña Administración)",
+    "Los usuarios, roles y permisos viven en una carpeta compartida de OneDrive: un cambio en una PC llega a las demás sin reiniciar",
+    "Alta, baja, edición y bloqueo de usuarios, con bases y módulos permitidos por persona",
+    "Permisos extra (se suman a los del rol) y permisos restringidos (se restan) por usuario",
+    "Editor de permisos por rol, con tildes agrupadas por módulo (63 permisos) y superadmin protegido",
+    "Vista de estado del almacén: ruta, sello, último escritor, conflictos entre PCs, respaldo y restauración",
+    "Auditoría de cambios: quién tocó qué y cuándo, leída del almacén compartido",
+    "Accesos rechazados: quien intentó entrar sin estar dado de alta aparece en el panel y se da de alta con un clic",
+    "El instalador ya no copia datos de desarrollo (cierra el pendiente E12 de la auditoría de seguridad)"
   ],
   "manifest_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/updates/1.0.0/manifest.json",
   "files_url": "https://raw.githubusercontent.com/ProyADM/ADM-ERP-Updates/main/updates/1.0.0/files/",
   "deleted_url": null,
   "installer_url": "https://github.com/ProyADM/ADM-ERP-Updates/releases/download/installer-latest/ADM-ERP_Setup_Latest.exe",
   "requires_restart": true,
-  "force_update": false
+  "force_update": false,
+  "min_version": null
 }

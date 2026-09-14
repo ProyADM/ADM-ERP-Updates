@@ -7,6 +7,8 @@ from flask import Blueprint, jsonify, request, session
 from .permisos import PermisosSistema
 from .usuarios import get_gestor_usuarios
 from .decorators import requiere_autenticacion, requiere_permiso, requiere_admin, requiere_superadmin
+from . import config_central
+from datetime import datetime
 import os
 import logging
 
@@ -14,6 +16,45 @@ logger = logging.getLogger(__name__)
 
 admin_bp = Blueprint('admin_api', __name__, url_prefix='/api/admin')
 gestor = get_gestor_usuarios()
+
+# ============================================================
+# HELPERS DEL ALMACÉN CENTRAL
+# ============================================================
+
+def _auditar(accion, **datos):
+    """Registra la operación en el log del almacén (arreglo 13.1 #2).
+
+    `config_central.auditar` nunca lanza: la operación sigue aunque la
+    auditoría no se pueda escribir (spec §7)."""
+    evento = {'accion': accion, 'por': session.get('username', 'desconocido')}
+    evento.update(datos)
+    config_central.auditar(evento)
+
+
+def _cuerpo_json():
+    """Body JSON como dict, o None si no es un objeto (el handler responde 400)."""
+    data = request.get_json(silent=True)
+    return data if isinstance(data, dict) else None
+
+
+# Campos que el PUT /usuarios/<username> puede tocar. Todo lo demás (sobre todo
+# `es_superadmin`, `password_hash`, `username`, `revision`) se rechaza con 400.
+CAMPOS_EDITABLES_USUARIO = {
+    'email', 'nombre', 'roles', 'permisos_extra', 'permisos_restringidos',
+    'activo', 'bloqueado', 'bases_permitidas', 'modulos_permitidos', 'usar_sso',
+}
+
+
+def _error_almacen(e):
+    """503 cuando el almacén está configurado y no se pudo escribir.
+
+    ⚠️ `config_central.AlmacenNoDisponible` hereda de RuntimeError: su `except`
+    tiene que ir ANTES del genérico `except RuntimeError` de cada handler."""
+    return jsonify({
+        "error": "El almacén central de configuración no está accesible: no se aplicó el cambio.",
+        "code": "ALMACEN_NO_DISPONIBLE",
+        "detalle": str(e),
+    }), 503
 
 # ============================================================
 # DASHBOARD ADMIN
@@ -67,6 +108,12 @@ def obtener_usuario(username):
         usuario = gestor.obtener_usuario(username)
         if not usuario:
             return jsonify({"error": "Usuario no encontrado"}), 404
+        # Arreglo 13.1 #5: el GET también devuelve las excepciones por usuario.
+        # `gestor.obtener_usuario` / `datos_usuario_completo` arman el shape público
+        # (nunca incluyen password_hash).
+        completo = gestor.datos_usuario_completo(username) or {}
+        usuario["permisos_extra"] = completo.get("permisos_extra", [])
+        usuario["permisos_restringidos"] = completo.get("permisos_restringidos", [])
         return jsonify(usuario)
     except ValueError as e:
         return jsonify({"error": f"Error de validación: {str(e)}"}), 400
@@ -81,7 +128,7 @@ def obtener_usuario(username):
 @requiere_permiso(PermisosSistema.ADMIN_USUARIOS_CREAR)
 def crear_usuario():
     try:
-        data = request.json
+        data = _cuerpo_json()
         
         if not data:
             return jsonify({"error": "Datos requeridos"}), 400
@@ -97,6 +144,7 @@ def crear_usuario():
             roles=data.get('roles', ['invitado']),
             usar_sso=True
         )
+        _auditar('usuario.crear', usuario=username.strip(), roles=data.get('roles'))
         
         return jsonify({
             "mensaje": "Usuario creado exitosamente (usa SSO de Windows)",
@@ -104,6 +152,8 @@ def crear_usuario():
         }), 201
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
+    except config_central.AlmacenNoDisponible as e:
+        return _error_almacen(e)
     except RuntimeError as e:
         return jsonify({"error": f"Error del sistema: {str(e)}"}), 500
     except Exception as e:
@@ -115,10 +165,20 @@ def crear_usuario():
 @requiere_permiso(PermisosSistema.ADMIN_USUARIOS_EDITAR)
 def editar_usuario(username):
     try:
-        data = request.json
+        data = _cuerpo_json()
         
         if not data:
             return jsonify({"error": "Datos requeridos"}), 400
+        
+        # Whitelist: por este endpoint NO se edita `es_superadmin` (ni ningún otro
+        # campo interno). Sin esto, un administrador con `admin.usuarios.editar`
+        # podía hacer PUT {"es_superadmin": true} sobre sí mismo y quedar como
+        # superadmin en el almacén compartido, propagado a todas las PCs.
+        no_editables = sorted(set(data) - CAMPOS_EDITABLES_USUARIO)
+        if no_editables:
+            return jsonify({
+                "error": f"Campos no editables por este endpoint: {', '.join(no_editables)}"
+            }), 400
             
         if username == session.get('username'):
             if data.get('bloqueado') is True:
@@ -126,13 +186,30 @@ def editar_usuario(username):
             if data.get('activo') is False:
                 return jsonify({"error": "No puedes desactivarte a ti mismo"}), 400
         
+        for campo in ('permisos_extra', 'permisos_restringidos'):
+            if campo not in data:
+                continue
+            valor = data[campo]
+            if not isinstance(valor, list) or not all(isinstance(p, str) for p in valor):
+                return jsonify({
+                    "error": f"{campo} debe ser una lista de permisos"
+                }), 400
+            invalidos = [p for p in valor if not PermisosSistema.es_permiso_valido(p)]
+            if invalidos:
+                return jsonify({
+                    "error": f"Permisos inexistentes en {campo}: {', '.join(invalidos)}"
+                }), 400
+
         gestor.editar_usuario(username, **data)
+        _auditar('usuario.editar', usuario=username, campos=sorted(data.keys()))
         return jsonify({
             "mensaje": "Usuario actualizado exitosamente",
             "usuario": username
         })
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
+    except config_central.AlmacenNoDisponible as e:
+        return _error_almacen(e)
     except RuntimeError as e:
         return jsonify({"error": f"Error del sistema: {str(e)}"}), 500
     except Exception as e:
@@ -148,12 +225,15 @@ def eliminar_usuario(username):
             return jsonify({"error": "No puedes eliminarte a ti mismo"}), 400
         
         gestor.eliminar_usuario(username)
+        _auditar('usuario.eliminar', usuario=username)
         return jsonify({
             "mensaje": "Usuario eliminado exitosamente",
             "usuario": username
         })
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
+    except config_central.AlmacenNoDisponible as e:
+        return _error_almacen(e)
     except RuntimeError as e:
         return jsonify({"error": f"Error del sistema: {str(e)}"}), 500
     except Exception as e:
@@ -169,11 +249,14 @@ def bloquear_usuario(username):
             return jsonify({"error": "No puedes bloquearte a ti mismo"}), 400
         
         gestor.bloquear_usuario(username)
+        _auditar('usuario.bloquear', usuario=username)
         return jsonify({
             "mensaje": f"Usuario {username} bloqueado exitosamente"
         })
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
+    except config_central.AlmacenNoDisponible as e:
+        return _error_almacen(e)
     except RuntimeError as e:
         return jsonify({"error": f"Error del sistema: {str(e)}"}), 500
     except Exception as e:
@@ -186,11 +269,14 @@ def bloquear_usuario(username):
 def desbloquear_usuario(username):
     try:
         gestor.desbloquear_usuario(username)
+        _auditar('usuario.desbloquear', usuario=username)
         return jsonify({
             "mensaje": f"Usuario {username} desbloqueado exitosamente"
         })
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
+    except config_central.AlmacenNoDisponible as e:
+        return _error_almacen(e)
     except RuntimeError as e:
         return jsonify({"error": f"Error del sistema: {str(e)}"}), 500
     except Exception as e:
@@ -210,6 +296,7 @@ def asignar_admin(username):
             return jsonify({"error": "Nombre de usuario requerido"}), 400
             
         gestor.asignar_rol_admin(username)
+        _auditar('usuario.asignar_admin', usuario=username)
         return jsonify({
             "mensaje": f"Rol admin asignado a {username}",
             "usuario": username,
@@ -217,6 +304,8 @@ def asignar_admin(username):
         })
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
+    except config_central.AlmacenNoDisponible as e:
+        return _error_almacen(e)
     except RuntimeError as e:
         return jsonify({"error": f"Error del sistema: {str(e)}"}), 500
     except Exception as e:
@@ -232,6 +321,7 @@ def quitar_admin(username):
             return jsonify({"error": "Nombre de usuario requerido"}), 400
             
         gestor.quitar_rol_admin(username)
+        _auditar('usuario.quitar_admin', usuario=username)
         return jsonify({
             "mensaje": f"Rol admin quitado a {username}",
             "usuario": username,
@@ -239,6 +329,8 @@ def quitar_admin(username):
         })
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
+    except config_central.AlmacenNoDisponible as e:
+        return _error_almacen(e)
     except RuntimeError as e:
         return jsonify({"error": f"Error del sistema: {str(e)}"}), 500
     except Exception as e:
@@ -254,8 +346,18 @@ def quitar_admin(username):
 @requiere_admin
 def regenerar_password_prueba():
     try:
-        nueva_password = gestor.generar_contraseña_usuario_prueba()
         usuario = gestor.obtener_usuario("prueba")
+        if usuario is None:
+            # El usuario 'prueba' ya no se crea en ninguna instalación nueva
+            # (decisión 12/09): el endpoint se mantiene por tolerancia, pero
+            # si no existe tiene que ser un 404 explícito, no un 400 genérico.
+            return jsonify({
+                "error": "El usuario 'prueba' ya no existe en este sistema",
+                "code": "USUARIO_PRUEBA_ELIMINADO"
+            }), 404
+
+        nueva_password = gestor.generar_contraseña_usuario_prueba()
+        _auditar('usuario.regenerar_password', usuario='prueba')
         
         return jsonify({
             "mensaje": "Contraseña del usuario 'prueba' regenerada exitosamente",
@@ -265,6 +367,8 @@ def regenerar_password_prueba():
         })
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
+    except config_central.AlmacenNoDisponible as e:
+        return _error_almacen(e)
     except RuntimeError as e:
         return jsonify({"error": f"Error del sistema: {str(e)}"}), 500
     except Exception as e:
@@ -325,7 +429,7 @@ def listar_roles():
 @requiere_permiso(PermisosSistema.ADMIN_ROLES_CREAR)
 def crear_rol():
     try:
-        data = request.json
+        data = _cuerpo_json()
         
         if not data:
             return jsonify({"error": "Datos requeridos"}), 400
@@ -346,12 +450,15 @@ def crear_rol():
             nivel=data.get('nivel', 0),
             color=data.get('color', '#6c757d')
         )
+        _auditar('rol.crear', rol=rol_id)
         return jsonify({
             "mensaje": "Rol creado exitosamente",
             "rol": rol_id
         }), 201
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
+    except config_central.AlmacenNoDisponible as e:
+        return _error_almacen(e)
     except RuntimeError as e:
         return jsonify({"error": f"Error del sistema: {str(e)}"}), 500
     except Exception as e:
@@ -363,18 +470,21 @@ def crear_rol():
 @requiere_permiso(PermisosSistema.ADMIN_ROLES_EDITAR)
 def editar_rol(rol_id):
     try:
-        data = request.json
+        data = _cuerpo_json()
         
         if not data:
             return jsonify({"error": "Datos requeridos"}), 400
             
         gestor.editar_rol(rol_id, **data)
+        _auditar('rol.editar', rol=rol_id)
         return jsonify({
             "mensaje": "Rol actualizado exitosamente",
             "rol": rol_id
         })
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
+    except config_central.AlmacenNoDisponible as e:
+        return _error_almacen(e)
     except RuntimeError as e:
         return jsonify({"error": f"Error del sistema: {str(e)}"}), 500
     except Exception as e:
@@ -387,12 +497,15 @@ def editar_rol(rol_id):
 def eliminar_rol(rol_id):
     try:
         gestor.eliminar_rol(rol_id)
+        _auditar('rol.eliminar', rol=rol_id)
         return jsonify({
             "mensaje": "Rol eliminado exitosamente",
             "rol": rol_id
         })
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
+    except config_central.AlmacenNoDisponible as e:
+        return _error_almacen(e)
     except RuntimeError as e:
         return jsonify({"error": f"Error del sistema: {str(e)}"}), 500
     except Exception as e:
@@ -422,40 +535,30 @@ def listar_permisos():
 # CONFIGURACIÓN DE BASES Y MÓDULOS (CORREGIDO)
 # ============================================================
 
+def _bases_desde_config():
+    """Bases reales del sistema: las de BASES_DISPONIBLES (mismos ids que usa
+    `bases_permitidas` y todo el resto de la app). Arreglo 13.1 #4.
+
+    Solo se expone lo que el panel necesita (id/nombre/pais/activo): nada de
+    `server` (host:puerto interno) ni de credenciales (`user`/`password`)."""
+    from config import BASES_DISPONIBLES
+    bases = []
+    for base_id, cfg in BASES_DISPONIBLES.items():
+        bases.append({
+            "id": base_id,
+            "nombre": cfg.get("label", base_id),
+            "pais": cfg.get("sigla", ""),
+            "activo": True,
+        })
+    return bases
+
+
 @admin_bp.route('/bases', methods=['GET'])
 @requiere_autenticacion
 @requiere_permiso(PermisosSistema.ADMIN_BASES_CONFIG)
 def listar_bases():
     try:
-        bases = []
-        paises = ['UY', 'RD', 'HN', 'GT', 'CO', 'PE', 'PY', 'EC', 'MX', 'CR', 'AR']
-        
-        for pais in paises:
-            server = os.environ.get(f'{pais}_SERVER')
-            # ✅ CORREGIDO: Validar variable de entorno
-            if server:
-                bases.append({
-                    "id": pais.lower(),
-                    "nombre": f"Base {pais}",
-                    "pais": pais,
-                    "server": server,
-                    "activo": True
-                })
-            else:
-                logger.warning(f"Variable {pais}_SERVER no definida en entorno")
-        
-        if not bases:
-            bases = [
-                {"id": "produccion", "nombre": "Base de Producción", "activo": True},
-                {"id": "test", "nombre": "Base de Test", "activo": True},
-                {"id": "desarrollo", "nombre": "Base de Desarrollo", "activo": False}
-            ]
-        
-        return jsonify({"bases": bases})
-    except KeyError as e:
-        return jsonify({"error": f"Variable de entorno faltante: {str(e)}"}), 500
-    except ValueError as e:
-        return jsonify({"error": f"Error de validación: {str(e)}"}), 400
+        return jsonify({"bases": _bases_desde_config()})
     except Exception as e:
         logger.error(f"Error en listar_bases: {e}")
         return jsonify({"error": f"Error inesperado: {str(e)}"}), 500
@@ -479,6 +582,140 @@ def listar_modulos():
         return jsonify({"error": f"Error inesperado: {str(e)}"}), 500
 
 # ============================================================
+# ALMACÉN CENTRAL: ESTADO, RESPALDO Y SIEMBRA MANUAL
+# ============================================================
+
+@admin_bp.route('/config/estado', methods=['GET'])
+@requiere_autenticacion
+@requiere_permiso(PermisosSistema.ADMIN_ACCESO)
+def estado_config():
+    try:
+        return jsonify(config_central.estado())
+    except Exception as e:
+        logger.error(f"Error en estado_config: {e}")
+        return jsonify({"error": f"Error inesperado: {str(e)}"}), 500
+
+@admin_bp.route('/config/recargar', methods=['POST'])
+@requiere_autenticacion
+@requiere_permiso(PermisosSistema.ADMIN_ACCESO)
+def recargar_config():
+    """Fuerza la relectura del almacén (spec §6.3).
+
+    Es una LECTURA: con el almacén degradado igual devuelve 200 con el modo,
+    porque no hay nada que escribir y el panel necesita poder refrescar el
+    estado sin que parezca un error."""
+    try:
+        recargado = bool(gestor.recargar_si_cambio(forzar=True))
+        return jsonify({'recargado': recargado, 'estado': config_central.estado()})
+    except Exception as e:
+        logger.error(f'Error en recargar_config: {e}')
+        return jsonify({"error": f"Error inesperado: {str(e)}"}), 500
+
+
+def _conflictos_del_almacen():
+    """Nombres de los archivos de conflictos, del más nuevo al más viejo.
+
+    Un almacén que no se puede listar (ACL denegada, carpeta que desaparece
+    entre el `isdir` y el `listdir`) cuenta como "no accesible": lista vacía,
+    no una excepción que el handler convierta en 500 (spec §6.4)."""
+    destino = config_central.resolver_central_dir()
+    if not destino or not os.path.isdir(destino):
+        return []
+    try:
+        entradas = os.listdir(destino)
+    except OSError:
+        return []
+    nombres = [
+        n for n in entradas
+        if n.startswith(config_central.PREFIJO_CONFLICTOS) and n.endswith('.json')
+        and os.path.isfile(os.path.join(destino, n))
+    ]
+    return sorted(nombres, reverse=True)
+
+
+@admin_bp.route('/config/conflictos', methods=['GET'])
+@requiere_autenticacion
+@requiere_permiso(PermisosSistema.ADMIN_ACCESO)
+def listar_conflictos():
+    """Conflictos de merge que dejó la sincronización entre PCs (spec §6.4)."""
+    try:
+        archivos = []
+        for nombre in _conflictos_del_almacen():
+            ruta = os.path.join(config_central.resolver_central_dir(), nombre)
+            try:
+                archivos.append({'nombre': nombre, 'bytes': os.path.getsize(ruta),
+                                 'fecha': datetime.fromtimestamp(
+                                     os.path.getmtime(ruta)).isoformat()})
+            except OSError:
+                continue
+        return jsonify({'total': len(archivos), 'archivos': archivos})
+    except Exception as e:
+        logger.error(f'Error en listar_conflictos: {e}')
+        return jsonify({"error": f"Error inesperado: {str(e)}"}), 500
+
+
+@admin_bp.route('/config/conflictos/<path:nombre>', methods=['GET'])
+@requiere_autenticacion
+@requiere_permiso(PermisosSistema.ADMIN_ACCESO)
+def ver_conflicto(nombre):
+    """Contenido de un archivo de conflictos.
+
+    El nombre que llega del cliente NUNCA se usa para armar la ruta: se valida
+    contra la lista real del almacén (spec §6.4)."""
+    try:
+        if nombre not in _conflictos_del_almacen():
+            return jsonify({'error': 'Conflicto no encontrado'}), 404
+        ruta = os.path.join(config_central.resolver_central_dir(), nombre)
+        return jsonify({'nombre': nombre, 'contenido': config_central.leer_json(ruta, {})})
+    except Exception as e:
+        logger.error(f'Error en ver_conflicto: {e}')
+        return jsonify({"error": f"Error inesperado: {str(e)}"}), 500
+
+@admin_bp.route('/config/exportar', methods=['POST'])
+@requiere_autenticacion
+@requiere_permiso(PermisosSistema.ADMIN_BACKUP)
+def exportar_config():
+    try:
+        from datetime import datetime as _dt
+        # El respaldo va a data/ (copia local del operador), nunca al almacén.
+        destino = os.path.join(
+            config_central.data_dir(),
+            f"config_export_{_dt.now().strftime('%Y%m%d_%H%M%S')}.json")
+        config_central.exportar(destino)
+        _auditar('config.exportar', archivo=os.path.basename(destino))
+        return jsonify({"mensaje": "Configuración exportada", "archivo": destino})
+    except ValueError as e:
+        # Almacén vacío: no se genera un respaldo que al importarse borraría todo.
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logger.error(f"Error en exportar_config: {e}")
+        return jsonify({"error": f"Error inesperado: {str(e)}"}), 500
+
+@admin_bp.route('/config/importar', methods=['POST'])
+@requiere_autenticacion
+@requiere_permiso(PermisosSistema.ADMIN_RESTAURAR)
+def importar_config():
+    try:
+        # `or {}`: si el body no es un objeto, `archivo` queda None → 400, no 500.
+        data = _cuerpo_json() or {}
+        origen = data.get('archivo')
+        if not origen or not os.path.exists(origen):
+            return jsonify({"error": "Archivo de respaldo no encontrado"}), 400
+        # `importar` valida la forma del respaldo ANTES de escribir el almacén.
+        n_u, n_r, _ = config_central.importar(origen, cambiado_por=session.get('username'))
+        gestor._cargar_datos()
+        _auditar('config.importar', archivo=os.path.basename(origen),
+                 usuarios=n_u, roles=n_r)
+        return jsonify({"mensaje": "Configuración importada", "usuarios": n_u, "roles": n_r})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except config_central.AlmacenNoDisponible as e:
+        return _error_almacen(e)
+    except Exception as e:
+        logger.error(f"Error en importar_config: {e}")
+        return jsonify({"error": f"Error inesperado: {str(e)}"}), 500
+
+# ============================================================
 # AUDITORÍA
 # ============================================================
 
@@ -487,44 +724,80 @@ def listar_modulos():
 @requiere_permiso(PermisosSistema.ADMIN_AUDITORIA_VER)
 def obtener_auditoria():
     try:
-        import json
-        from datetime import datetime, timedelta
-        
-        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        log_file = os.path.join(base_dir, 'data', 'auditoria.log')
-        
-        logs = []
-        if os.path.exists(log_file):
-            with open(log_file, 'r', encoding='utf-8') as f:
-                for line in f:
-                    try:
-                        logs.append(json.loads(line))
-                    except json.JSONDecodeError:
-                        continue
-        
         dias = request.args.get('dias', default=7, type=int)
         if dias <= 0 or dias > 365:
             dias = 7
-            
-        fecha_corte = datetime.now() - timedelta(days=dias)
-        
-        logs_filtrados = [
-            log for log in logs 
-            if datetime.fromisoformat(log.get('fecha', '2000-01-01')) > fecha_corte
-        ]
-        
-        return jsonify({
-            "auditoria": logs_filtrados[-100:],
-            "total": len(logs_filtrados)
-        })
-    except FileNotFoundError as e:
-        return jsonify({"error": f"Archivo de auditoría no encontrado: {str(e)}"}), 404
-    except PermissionError as e:
-        return jsonify({"error": f"Permiso denegado: {str(e)}"}), 403
-    except json.JSONDecodeError as e:
-        return jsonify({"error": f"Error al leer archivo de auditoría: {str(e)}"}), 500
-    except ValueError as e:
-        return jsonify({"error": f"Error de validación: {str(e)}"}), 400
+        # `limite` lo usa el "mostrar más" del panel (spec §5.4): acotado a 500
+        # para que una consulta del panel no traiga un archivo entero.
+        limite = request.args.get('limite', default=100, type=int)
+        if limite <= 0 or limite > 500:
+            limite = 100
+        # Lee el log real del almacén (auditoria.jsonl), no el data/auditoria.log
+        # que nadie escribía (hallazgo 13.1 #2).
+        eventos = config_central.leer_auditoria(dias=dias, limite=limite)
+        return jsonify({"auditoria": eventos, "total": len(eventos)})
     except Exception as e:
         logger.error(f"Error en obtener_auditoria: {e}")
+        return jsonify({"error": f"Error inesperado: {str(e)}"}), 500
+
+@admin_bp.route('/accesos-rechazados', methods=['GET'])
+@requiere_autenticacion
+@requiere_permiso(PermisosSistema.ADMIN_USUARIOS_CREAR)
+def listar_accesos_rechazados():
+    """Intentos de acceso rechazados, agrupados por usuario de Windows.
+
+    Es lo que permite el "dar de alta en un clic" del panel: el rechazado no
+    tiene que adivinar su nombre de usuario (spec §6.2)."""
+    try:
+        from datetime import datetime as _dt
+
+        # Un solo retrato del almacén para todo el request: `usuarios` se
+        # reemplaza entero al recargar (swap atómico), así que `ya_existe` y
+        # `activo` no pueden salir de dos revisiones distintas.
+        almacen = gestor.usuarios
+        # Windows no distingue mayúsculas y el usuario puede teclear la grafía que
+        # quiera, mientras el detalle se busca por clave EXACTA
+        # (`usuarios.py:obtener_usuario`). El mapa traduce la grafía tecleada a la
+        # clave REAL del almacén, si existe. `agrupados` sí queda en minúsculas
+        # (una sola fila por persona) y `usuario` devuelve la clave real cuando el
+        # usuario existe: si no, la vista mostraba "Ver usuario" y el GET exacto
+        # contestaba 404 ("El registro ya no existe").
+        claves_reales = {clave.lower(): clave for clave in almacen}
+        eventos = config_central.leer_auditoria(dias=30, limite=500)
+        agrupados = {}
+        for ev in eventos:
+            if ev.get('accion') != 'acceso.rechazado':
+                continue
+            usuario = (ev.get('por') or '').strip()
+            if not usuario:
+                continue
+            clave = usuario.lower()
+            fecha = ev.get('fecha') or ''
+            actual = agrupados.get(clave)
+            if actual is None:
+                real = claves_reales.get(clave)
+                agrupados[clave] = {
+                    'usuario': real if real is not None else usuario,
+                    'pc': ev.get('pc') or '',
+                    'motivo': ev.get('motivo') or '',
+                    'veces': 1,
+                    'ultimo': fecha,
+                    'ya_existe': real is not None,
+                    'activo': almacen[real].activo if real is not None else None,
+                }
+            else:
+                actual['veces'] += 1
+                if fecha > (actual['ultimo'] or ''):
+                    actual['ultimo'] = fecha
+                    actual['pc'] = ev.get('pc') or actual['pc']
+                    actual['motivo'] = ev.get('motivo') or actual['motivo']
+        usuarios = sorted(agrupados.values(),
+                          key=lambda u: u['ultimo'] or '', reverse=True)
+        return jsonify({
+            'total': len(usuarios),
+            'generado': _dt.now().isoformat(),
+            'usuarios': usuarios,
+        })
+    except Exception as e:
+        logger.error(f'Error en listar_accesos_rechazados: {e}')
         return jsonify({"error": f"Error inesperado: {str(e)}"}), 500

@@ -1,0 +1,73 @@
+/* ============================================================
+   ADMIN - ESTILOS DEL PANEL DE ADMINISTRACIÓN (Etapa 2)
+   Usa las variables del proyecto (global.css).
+   ============================================================ */
+
+.admin-titulo { margin: 4px 0 14px; font-size: 18px; color: var(--ink); }
+.admin-body { display: block; }
+
+.admin-chip {
+  display: inline-block; padding: 4px 12px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; margin-bottom: 12px;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--ink-soft);
+}
+.admin-chip-ok { background: #dcfce7; border-color: #86efac; color: #166534; }
+.admin-chip-warn { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
+.admin-chip-gris { background: var(--surface-2); border-color: var(--border); color: var(--ink-soft); }
+
+.admin-banner {
+  margin-bottom: 14px; padding: 10px 14px; border-radius: var(--radius-sm);
+  background: #fef3c7; border: 1px solid #fcd34d; color: #92400e; font-size: 13px;
+}
+
+.admin-aviso {
+  padding: 14px; border-radius: var(--radius-sm); background: var(--surface-2);
+  border: 1px solid var(--border); color: var(--ink-soft); font-size: 13px;
+}
+.admin-aviso-error { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
+
+.admin-toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.admin-toolbar input[type="text"] { flex: 1; min-width: 220px; }
+
+.admin-btn {
+  padding: 6px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+  background: var(--surface); color: var(--ink); font-size: 12px; font-weight: 600;
+  cursor: pointer;
+}
+.admin-btn:hover { background: var(--surface-2); }
+.admin-btn-primario { background: var(--primary); border-color: var(--primary); color: #fff; }
+.admin-btn-peligro { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
+.admin-btn[disabled] { opacity: .5; cursor: not-allowed; }
+
+.admin-tabla { width: 100%; border-collapse: collapse; font-size: 13px; }
+.admin-tabla th, .admin-tabla td {
+  text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.admin-tabla th { font-size: 11px; text-transform: uppercase; color: var(--ink-soft); }
+.admin-tabla tr:hover td { background: var(--surface-2); }
+.admin-vacio { text-align: center; color: var(--ink-soft); padding: 18px; }
+
+.admin-panel {
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface);
+  padding: 16px; margin-bottom: 14px; box-shadow: var(--shadow);
+}
+.admin-panel h4 { margin: 0 0 12px; font-size: 15px; color: var(--ink); }
+.admin-campo { margin-bottom: 10px; display: flex; flex-direction: column; gap: 4px; }
+.admin-campo label { font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+.admin-campo input[type="text"], .admin-campo input[type="email"] { padding: 7px 9px; }
+
+.admin-checks { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.admin-check { font-size: 12px; color: var(--ink); display: inline-flex; gap: 5px; align-items: center; }
+.admin-grupo { border-top: 1px solid var(--border); padding-top: 8px; margin-top: 8px; }
+.admin-grupo-titulo { font-size: 12px; font-weight: 700; color: var(--ink-soft); margin-bottom: 6px; }
+
+.admin-dato { display: flex; gap: 8px; font-size: 13px; padding: 4px 0; }
+.admin-dato b { min-width: 150px; color: var(--ink-soft); font-weight: 600; }
+
+/* Las vistas del panel usan .section, pero global.css las fuerza visibles dentro
+   de #module-content (#id gana por especificidad), así que se re-declara acá:
+   admin.css se carga último y solo la vista activa queda visible (mismo patrón
+   que stock.css). */
+#module-content .section { display: none; }
+#module-content .section.active { display: block; }

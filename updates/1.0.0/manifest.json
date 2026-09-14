@@ -1,11 +1,11 @@
 {
   "app.py": {
-    "hash": "5c37cc7f4a305231a597051ebb8b4582b95d6ffcbf13a464416a7b64ee34ffa2",
-    "size": 47751
+    "hash": "bc980d8e2032161b8470e8af4f7fe319691d032cb58ecdf5da35bd71b88d03be",
+    "size": 48742
   },
   "config.py": {
-    "hash": "6cc6d62df20f995d3a41a921966e75c1a40fe3b166a68181fe07681d5b58ef6a",
-    "size": 14740
+    "hash": "82de40d7488ebc61c9bd0faf2967406ffc6d2cb071f95b852a4f4c72ad9bd0fb",
+    "size": 15436
   },
   "crypto_utils.py": {
     "hash": "3820ef77e2c06a2574af2e724acaf3ae4f029487b2975ea473646aa1e687d2ec",
@@ -16,8 +16,12 @@
     "size": 4277
   },
   "frontend/app.js": {
-    "hash": "beb46cb2b1a771c904c67035dab49c5835f3065fa11765f37b2655e4c2b202c1",
-    "size": 53364
+    "hash": "c958d83cb1de7b1c672dba5913f64c1f76785303c57de3c00b92d37d48c180e0",
+    "size": 53944
+  },
+  "frontend/css/admin.css": {
+    "hash": "4fa19e82f63d06f46402d7e3e00d977b7cbc2530dfc596d24f9dd25ec10cb484",
+    "size": 3835
   },
   "frontend/css/cotizaciones.css": {
     "hash": "8b3053c230b8bb787e6d23f0f8e99240da66d7303de64fdc2cd90481334a4ac7",
@@ -44,8 +48,40 @@
     "size": 13067
   },
   "frontend/index.html": {
-    "hash": "f6bd552c4dcc13b9fa51aa9aaa2feda7244705cda668595ff833830a09e6c0f2",
-    "size": 20158
+    "hash": "09881979710f141271c3015ddbe893ee302dd1ced88a02e48827e2a2b14bbba2",
+    "size": 21825
+  },
+  "frontend/modules/admin/accesos.js": {
+    "hash": "bbdc768bf0af2e04b1a538d6fb3064f7256bb5d920a297201dabad5609df47a1",
+    "size": 5942
+  },
+  "frontend/modules/admin/api.js": {
+    "hash": "ac58fd8efa3aac2b6d6f0b4f8c8d65fff13aba66e412e66d8dbe0ceed3540285",
+    "size": 2112
+  },
+  "frontend/modules/admin/auditoria.js": {
+    "hash": "2d839ea655ddde299043fe1cba9cf355faab567effb63f1e1b693774e74dd741",
+    "size": 3370
+  },
+  "frontend/modules/admin/estado.js": {
+    "hash": "828185f1d5898668f16fadcd06167445b2b4e42cc191822c27bec5f99cd97a7e",
+    "size": 9285
+  },
+  "frontend/modules/admin/index.js": {
+    "hash": "5090efc0efcb78cacf60db7a970e1988fbdd313dbaf1fb5fd6c50ea00980ba6e",
+    "size": 11646
+  },
+  "frontend/modules/admin/roles.js": {
+    "hash": "1a36cc90b78866416f62b9dc88883e8e3e7982d420009f1c7ff805cff989becd",
+    "size": 13191
+  },
+  "frontend/modules/admin/template.js": {
+    "hash": "5862482e51a3f600ad64b84248a15f844826c4c001f40352a73a3234f53ac5dd",
+    "size": 1437
+  },
+  "frontend/modules/admin/usuarios.js": {
+    "hash": "2b40abc7ba39fb8228e4de805d2c7767a44573f9d37499a5e1803a5c4930f685",
+    "size": 18757
   },
   "frontend/modules/cotizaciones.js": {
     "hash": "24462693a067bce1f2128094570c33fece4a5bfad17378fad3c8bfd1253d4e11",
@@ -176,8 +212,8 @@
     "size": 9770
   },
   "frontend/modules/templates.js": {
-    "hash": "23b6e8e2283b6b9780d592f616b8416bb01c25c50929f34c01c9a3147220ba65",
-    "size": 55633
+    "hash": "b8527424a0f33c850cfe9926c4d5de8aaa3cb7cdc7d51908da967aa88fcb76d6",
+    "size": 55843
   },
   "modules/__init__.py": {
     "hash": "86523d3e92614adaf18f612147310c0b27037896e1beb5daa90fbf6fcd9fc3e2",
@@ -252,16 +288,20 @@
     "size": 354
   },
   "modules/shared/admin_api.py": {
-    "hash": "1575f03c8634e1b28420f55f0158617e7b39f8a50c791cc8d4533141caea24e3",
-    "size": 20816
+    "hash": "2dff888a613e7edc3b02781944c0a34a26e59baa1b2117e478ef303fdc9e1bdb",
+    "size": 33826
   },
   "modules/shared/auth.py": {
-    "hash": "2d8435ac3ceb6585642f93d6422e1f144a0461115e8f4c1ee8dcbfd2d28b32f1",
-    "size": 13174
+    "hash": "adfe5d8853dde969ab7a9c4b49d9485f788de77ebc4dab1b0807f00f781cc1a6",
+    "size": 14946
   },
   "modules/shared/auth_windows.py": {
     "hash": "a577a03d8d966c0cb499da47c17f6a817e937e9c30527669311544e6cf08a8ec",
     "size": 11238
+  },
+  "modules/shared/config_central.py": {
+    "hash": "9f5f7898c305bead1fa76e53f8270b2fe2b6a28500869041bc57a50791752590",
+    "size": 30185
   },
   "modules/shared/dashboard.py": {
     "hash": "e2a393104016dd6d34807a9a98d87a245b33b078a9230d7d11740cc159b523c5",
@@ -280,8 +320,8 @@
     "size": 6243
   },
   "modules/shared/permisos.py": {
-    "hash": "436708e5c45d7c98bc4640d5a41a9f68867d30c0c40b7a8690158eaf63423027",
-    "size": 7048
+    "hash": "99fa01106edc5908faa30fd97a9c6c71ec9bdf294a700ec6354459ed28c3597b",
+    "size": 7190
   },
   "modules/shared/relanzar.py": {
     "hash": "b66ada6894465b3aa3c438d4f47f4eaf9d60fe4d08e4febeb9aea06e814a79ff",
@@ -296,8 +336,8 @@
     "size": 3278
   },
   "modules/shared/usuarios.py": {
-    "hash": "e6347baeb7aea53c08685c5e685a69a5ffd3e919dd4d9575d88387eed76ea2dd",
-    "size": 36009
+    "hash": "42d203f1433167fb1a98c3fa0545b48bd845d92b440fe0524772b9a024955383",
+    "size": 45248
   },
   "modules/shared/utils.py": {
     "hash": "a61adc8355013d351bcecca45acc40ad7b4662ad0d0ac6b7b423feb486bfba5b",

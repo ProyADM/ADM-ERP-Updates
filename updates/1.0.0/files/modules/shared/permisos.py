@@ -98,33 +98,32 @@ class PermisosSistema:
     
     @classmethod
     def obtener_permisos_agrupados(cls):
-        """Retorna permisos agrupados por categoría"""
-        return {
-            "administracion": [
-                p for p in dir(cls) 
-                if p.startswith('ADMIN_') and not p.startswith('_')
-            ],
-            "cxp": [
-                p for p in dir(cls) 
-                if p.startswith('CXP_') and not p.startswith('_')
-            ],
-            "stock": [
-                p for p in dir(cls) 
-                if p.startswith('STOCK_') and not p.startswith('_')
-            ],
-            "cotizaciones": [
-                p for p in dir(cls) 
-                if p.startswith('COTIZACIONES_') and not p.startswith('_')
-            ],
-            "reportes": [
-                p for p in dir(cls) 
-                if p.startswith('REPORTES_') and not p.startswith('_')
-            ],
-            "bases_datos": [
-                p for p in dir(cls) 
-                if p.startswith('BASE_') and not p.startswith('_')
-            ]
+        """Permisos agrupados por categoría, con el VALOR (no el nombre de la
+        constante). El panel pinta los checkboxes con esto (arreglo 13.1 #3)."""
+        prefijos = {
+            "administracion": "ADMIN_",
+            "cxp": "CXP_",
+            "stock": "STOCK_",
+            "cotizaciones": "COTIZACIONES_",
+            "reportes": "REPORTES_",
+            "bases_datos": "BASE_",
         }
+        agrupados = {}
+        for grupo, prefijo in prefijos.items():
+            valores = []
+            for nombre in dir(cls):
+                if not nombre.startswith(prefijo) or nombre.startswith('_'):
+                    continue
+                valor = getattr(cls, nombre)
+                if isinstance(valor, str) and valor not in valores:
+                    valores.append(valor)
+            agrupados[grupo] = sorted(valores)
+        return agrupados
+
+    @classmethod
+    def es_permiso_valido(cls, permiso: str) -> bool:
+        """True si el string es un permiso del catálogo (para validar entradas)."""
+        return isinstance(permiso, str) and permiso in cls.obtener_todos_permisos()
     
     @classmethod
     def obtener_permisos_modulo(cls, modulo):

@@ -581,6 +581,14 @@ def _resolver_base_activa():
     Sin X-Base, la base por defecto se usa solo si el usuario puede operarla;
     en APIs de datos se rechaza para que el cliente envíe una base permitida.
     """
+    # Config central (Etapa 1): si otra PC cambió usuarios/roles, se aplica acá.
+    # El throttle vive en el gestor (CENTRAL_RELOAD_SEG): a lo sumo un stat por request.
+    try:
+        if get_gestor_usuarios().recargar_si_cambio():
+            _refrescar_sesion_desde_gestor()
+    except Exception as e:
+        app.logger.warning(f"No se pudo recargar la configuración central: {e}")
+
     sociedad = request.headers.get("X-Sociedad")
 
     # 1) Sin sesión → contexto por defecto, ignorar X-Base por completo.
@@ -632,6 +640,21 @@ def obtener_datos_usuario_completo(username):
     gestor, que usa []). El gestor ya resuelve rol/permisos/superadmin."""
     gestor = get_gestor_usuarios()
     return gestor.datos_usuario_completo(username)
+
+def _refrescar_sesion_desde_gestor():
+    """Tras una recarga del almacén central, actualiza la copia cacheada en la
+    sesión para que la autorización por base no quede vieja hasta el re-login."""
+    username = session.get('username')
+    if not username:
+        return
+    user_data = obtener_datos_usuario_completo(username)
+    if not user_data:
+        session.clear()
+        return
+    session['rol'] = user_data['rol']
+    session['es_superadmin'] = user_data['es_superadmin']
+    session['permisos'] = user_data['permisos']
+    session['user_data'] = user_data
 
 # ============================================================
 # MIDDLEWARE DE AUTENTICACIÓN

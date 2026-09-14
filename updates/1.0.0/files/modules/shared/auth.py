@@ -6,6 +6,7 @@
 # auto-crear usuarios al vuelo. La identidad/roles/permisos se derivan del
 # GestorUsuarios (usuarios.json + roles.json), única fuente de verdad.
 
+import socket
 import subprocess
 from flask import Blueprint, request, jsonify, session, g
 from modules.shared.auth_windows import (
@@ -60,9 +61,45 @@ def _materializar_sesion(user_data, user_info=None):
     return token
 
 
+# ============================================================
+# REGISTRO DE INTENTOS RECHAZADOS (panel de administración, spec §6.1)
+# ============================================================
+# Deja rastro para que el panel pueda ofrecer "dar de alta" con un clic en vez
+# de que el rechazado tenga que adivinar por qué no entra. NUNCA interrumpe el
+# login: `config_central.auditar` ya está diseñado para no lanzar, y acá se
+# envuelve igual por si el almacén está a medio camino.
+
+VENTANA_RECHAZO_SEG = 300          # 5 minutos de anti-ruido por (usuario, motivo)
+_RECHAZOS_VISTOS = {}              # {(usuario, motivo): datetime del último registro}
+
+
+def _registrar_rechazo(username, motivo):
+    """Anota un acceso rechazado. Best-effort: si no se puede, no pasa nada."""
+    from datetime import datetime as _dt
+
+    clave = (str(username or '').strip().lower(), str(motivo or ''))
+    ahora = _dt.now()
+    anterior = _RECHAZOS_VISTOS.get(clave)
+    if anterior is not None and (ahora - anterior).total_seconds() < VENTANA_RECHAZO_SEG:
+        return
+    _RECHAZOS_VISTOS[clave] = ahora
+    try:
+        from . import config_central
+        config_central.auditar({
+            'accion': 'acceso.rechazado',
+            'por': username,
+            'motivo': motivo,
+            'pc': socket.gethostname(),
+            'fecha': ahora.isoformat(),
+        })
+    except Exception as e:                     # nunca romper el login por auditar
+        logger.warning(f'No se pudo registrar el intento rechazado de {username}: {e}')
+
+
 def _verificar_usuario_habilitado(gestor, username):
     """Devuelve (error_response|None, user_data|None). No crea usuarios."""
     if username not in gestor.usuarios:
+        _registrar_rechazo(username, 'USER_NOT_AUTHORIZED')
         return (
             jsonify({
                 'error': 'Usuario no autorizado. Contactá al administrador para darte de alta.',
@@ -71,11 +108,13 @@ def _verificar_usuario_habilitado(gestor, username):
         ), None
     u = gestor.usuarios[username]
     if not u.activo:
+        _registrar_rechazo(username, 'USER_DISABLED')
         return (jsonify({
             'error': 'Usuario desactivado',
             'code': 'USER_DISABLED'
         }), 403), None
     if u.bloqueado:
+        _registrar_rechazo(username, 'USER_BLOCKED')
         return (jsonify({
             'error': 'Usuario bloqueado',
             'code': 'USER_BLOCKED'

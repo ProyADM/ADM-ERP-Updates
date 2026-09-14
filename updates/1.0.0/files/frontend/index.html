@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="/frontend/css/cxp.css">
   <link rel="stylesheet" href="/frontend/css/cotizaciones.css">
   <link rel="stylesheet" href="/frontend/css/reportes.css">
+  <link rel="stylesheet" href="/frontend/css/admin.css">
 </head>
 <body>
 
@@ -33,6 +34,7 @@
     <button class="module-tab" data-module="cxp" data-onclick="cambiarModulo('cxp'); openDrawer();">💳 CxP</button>
     <button class="module-tab" data-module="cotizaciones" data-onclick="cambiarModulo('cotizaciones'); openDrawer();">💱 Cotizaciones</button>
     <button class="module-tab" data-module="reportes" data-onclick="cambiarModulo('reportes'); openDrawer();">📊 Reportes</button>    
+    <button class="module-tab" data-module="admin" data-onclick="cambiarModulo('admin'); openDrawer();">⚙️ Administración</button>
   </nav>
 
   <div class="topbar-spacer"></div>
@@ -150,6 +152,16 @@
     <div class="drawer-group">
         <div class="drawer-tab" data-tab="reportes-consolidado-total" data-onclick="cambiarReporte('consolidado-total'); closeDrawer();" data-tooltip="drawerReportesConsolidadoTotal">🌐 Ventas Globales</div>
     </div>
+  </div>
+
+  <!-- === ADMINISTRACIÓN (Etapa 2) === -->
+  <div class="drawer-module" data-module="admin" style="display:none">
+    <div class="drawer-category">⚙️ Administración</div>
+    <div class="drawer-group"><div class="drawer-tab active" data-tab="admin-usuarios" data-perm="admin.usuarios.ver">👤 Usuarios</div></div>
+    <div class="drawer-group"><div class="drawer-tab" data-tab="admin-roles" data-perm="admin.roles.ver">🔑 Roles y permisos</div></div>
+    <div class="drawer-group"><div class="drawer-tab" data-tab="admin-estado" data-perm="admin.acceso">🗄️ Estado del almacén</div></div>
+    <div class="drawer-group"><div class="drawer-tab" data-tab="admin-auditoria" data-perm="admin.auditoria.ver">🧾 Auditoría</div></div>
+    <div class="drawer-group"><div class="drawer-tab" data-tab="admin-accesos" data-perm="admin.usuarios.crear">🚫 Accesos rechazados</div></div>
   </div>
 </nav>
 
@@ -297,6 +309,17 @@
 
 <!-- Templates y Stock (siempre primero) -->
 <script src="/frontend/modules/templates.js"></script>
+
+<!-- Panel de administración (Etapa 2): template después de templates.js -->
+<script src="/frontend/modules/admin/api.js"></script>
+<script src="/frontend/modules/admin/template.js"></script>
+<script src="/frontend/modules/admin/index.js"></script>
+<script src="/frontend/modules/admin/usuarios.js"></script>
+<script src="/frontend/modules/admin/roles.js"></script>
+<script src="/frontend/modules/admin/estado.js"></script>
+<script src="/frontend/modules/admin/auditoria.js"></script>
+<script src="/frontend/modules/admin/accesos.js"></script>
+
 <script src="/frontend/modules/stock/utils.js"></script>
 <script src="/frontend/modules/stock/ajustes.js"></script>
 <script src="/frontend/modules/stock/transferencias.js"></script>

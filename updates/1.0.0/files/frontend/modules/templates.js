@@ -707,6 +707,11 @@ function inicializarModulo(modulo) {
     
     setTimeout(() => {
         switch(modulo) {
+            case 'admin':
+                if (typeof inicializarAdmin === 'function') {
+                    inicializarAdmin();
+                }
+                break;
             case 'stock':
                 // 🔴 RESTAURAR LA ÚLTIMA SECCIÓN DE STOCK GUARDADA
                 // cargarSelectsStock() es idempotente: si las caches ya están
@@ -910,7 +915,8 @@ function mostrarSeccionActiva(modulo) {
     
     const sectionMap = {
         'cxp': 'cxp-facturas',
-        'cotizaciones': 'cxp-cotizaciones'
+        'cotizaciones': 'cxp-cotizaciones',
+        'admin': 'admin-usuarios'
     };
     const sectionId = sectionMap[modulo];
     if (sectionId) {

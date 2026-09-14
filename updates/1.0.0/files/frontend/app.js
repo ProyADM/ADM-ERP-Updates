@@ -167,6 +167,9 @@ document.querySelectorAll('.drawer-tab').forEach(tab => {
       try { localStorage.setItem('ultimaSeccionStock', tab.dataset.tab); } catch (e) {}
       navegarStock(tab.dataset.tab);
     }
+    if (moduloActual === 'admin' && typeof navegarAdmin === 'function') {
+      navegarAdmin(tab.dataset.tab);
+    }
     if (tab.dataset.tab === 'stock-consolidado') {
       if (typeof cerrarToast === 'function') cerrarToast();
       if (typeof buscarConsolidado === 'function') buscarConsolidado(true);
@@ -889,6 +892,14 @@ function aplicarPermisosUI(user) {
             || modulos.indexOf(mod) >= 0
             || permisos.some(function (p) { return p.indexOf(mod + '.') === 0; });
         if (!tieneModulo) btn.style.display = 'none';
+    });
+
+    // 1b) Pestaña Administración: exige `admin.acceso` (spec §4.1). Sin esta
+    //     regla, la condición por prefijo la mostraría a cualquiera con
+    //     `admin.dashboard`, que hoy lo tienen TODOS los roles.
+    document.querySelectorAll('.module-tab[data-module="admin"]').forEach(function (btn) {
+        var puedeAdmin = superUser || permisos.indexOf('admin.acceso') >= 0;
+        btn.style.display = puedeAdmin ? '' : 'none';
     });
 
     // 2) Acciones puntuales marcadas con data-perm="modulo.accion"

@@ -3,14 +3,16 @@
 # GESTIÓN DE USUARIOS Y ROLES - SIDESYS ERP
 # ============================================================
 
-import json
+import copy
 import os
 import bcrypt
 import secrets
-import shutil
+import time
 from datetime import datetime
+from functools import wraps
 from typing import List, Dict, Optional, Any
 from .permisos import PermisosSistema
+from . import config_central
 
 # ============================================================
 # CONFIGURACIÓN DEL SUPERADMIN (DESDE VARIABLES DE ENTORNO)
@@ -32,15 +34,33 @@ def _get_superadmin_username() -> str:
         return "pmolina"
     return username
 
-def _get_prueba_password() -> str:
-    password = os.environ.get('PRUEBA_PASSWORD')
-    if not password:
-        return "prueba123"
-    return password
-
 SUPERADMIN_EMAIL = _get_superadmin_email()
 SUPERADMIN_USERNAME = _get_superadmin_username()
-PRUEBA_PASSWORD = _get_prueba_password()
+
+def _reversible(fn):
+    """Si el almacén no se puede escribir, revierte el cambio en memoria."""
+    @wraps(fn)
+    def envuelto(self, *a, **kw):
+        # Copia PROFUNDA también de cada usuario: `to_dict()` devuelve las mismas
+        # listas (`roles`, `permisos_extra`, ...), así que un append in place mutaría
+        # el snapshot y el restore dejaría el cambio aplicado.
+        snapshot = (
+            {k: copy.deepcopy(u.to_dict()) for k, u in self.usuarios.items()},
+            copy.deepcopy(self.roles),
+            copy.deepcopy(self.lapidas),
+            copy.deepcopy(self.lapidas_roles),
+        )
+        try:
+            return fn(self, *a, **kw)
+        except config_central.AlmacenNoDisponible:
+            usuarios, roles, lapidas, lapidas_roles = snapshot
+            self.usuarios = {k: Usuario.from_dict(v) for k, v in usuarios.items()}
+            self.roles = roles
+            self.lapidas = lapidas
+            self.lapidas_roles = lapidas_roles
+            raise
+    return envuelto
+
 
 class Usuario:
     """Representa un usuario del sistema"""
@@ -71,6 +91,12 @@ class Usuario:
         self.ultimo_intento: Optional[str] = None
         self.es_usuario_prueba: bool = False
         self.usar_sso: bool = True
+        # Revisión del registro en el almacén (spec §5). Sin estos dos campos el
+        # merge de tres vías veía "cambiado" TODO registro en cada guardado y,
+        # con la base local vieja, descartaba la edición al archivo de
+        # conflictos respondiendo igual 200 (CRITICAL 1).
+        self.revision: Optional[str] = None
+        self.modificado_por: Optional[str] = None
         
     def to_dict(self) -> Dict:
         return {
@@ -91,7 +117,9 @@ class Usuario:
             "intentos_fallidos": self.intentos_fallidos,
             "ultimo_intento": self.ultimo_intento,
             "es_usuario_prueba": self.es_usuario_prueba,
-            "usar_sso": self.usar_sso
+            "usar_sso": self.usar_sso,
+            "revision": self.revision,
+            "modificado_por": self.modificado_por
         }
     
     @classmethod
@@ -116,131 +144,209 @@ class Usuario:
         usuario.ultimo_intento = data.get('ultimo_intento')
         usuario.es_usuario_prueba = data.get('es_usuario_prueba', False)
         usuario.usar_sso = data.get('usar_sso', True)
+        usuario.revision = data.get('revision')
+        usuario.modificado_por = data.get('modificado_por')
         return usuario
 
 
 class GestorUsuarios:
     """Gestiona usuarios, roles y permisos"""
     
-    def __init__(self, archivo_usuarios: str = None):
-        if archivo_usuarios is None:
-            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-            data_dir = os.path.join(base_dir, 'data')
-            os.makedirs(data_dir, exist_ok=True)
-            archivo_usuarios = os.path.join(data_dir, 'usuarios.json')
-        
-        self.archivo_usuarios = archivo_usuarios
-        self.archivo_roles = os.path.join(os.path.dirname(archivo_usuarios), 'roles.json')
+    def __init__(self, archivo_usuarios: str = None, carpeta_central: str = None):
+        # `archivo_usuarios` se conserva en la firma por compatibilidad: la
+        # persistencia local la resuelve `config_central` (`data_dir()` /
+        # `_local_dir`), así que no se guarda ni se lee (limpieza 12/09).
+        self.carpeta_central = carpeta_central
+        # El override de carpeta es de pruebas: la cache se va con el al temp para no
+        # ensuciar el data/cache_central del desarrollador.
+        self.cache_central = (carpeta_central + '_cache') if carpeta_central else None
+        if self.cache_central:
+            # La caché es la copia buena del modo degradado: si el directorio no
+            # existe, `guardar()` no puede dejar el fallback (T14). En producción lo
+            # crea `config_central.cache_dir()`.
+            os.makedirs(self.cache_central, exist_ok=True)
+        # El fallback local va al temp por el mismo motivo: `_local_dir` es de dónde
+        # se SIEMBRA el almacén y adónde escribe la rama local; sin el seam, las
+        # pruebas leerían el data/ real y dejarían ahí los *.pre-central.json.
+        self.local_central = (carpeta_central + '_local') if carpeta_central else None
         self.usuarios: Dict[str, Usuario] = {}
         self.roles: Dict[str, Dict] = {}
+        # Lápidas: registros borrados que hay que reenviar al almacén para que el
+        # borrado se propague a las demás PCs (sección 5 del spec).
+        self.lapidas: Dict[str, Dict] = {}
+        # Lápidas de ROL: se guardan aparte de `self.roles` (si entraran ahí, un rol
+        # borrado seguiría otorgando sus permisos hasta la poda). Sin guardarlas y
+        # reenviarlas, `config_central.guardar` las re-sintetizaba con
+        # `revision = now` en cada guardado: nunca llegaban a los 90 días de
+        # `_podar_lapidas` y cada escritura con base vieja dejaba un conflicto
+        # espurio por lápida.
+        self.lapidas_roles: Dict[str, Dict] = {}
+        self.estado_central: Dict = {}
+        self._sello_actual = None
+        self._ultimo_chequeo = 0.0
+        self._reload_seg = config_central.ajustes()['reload_seg']
         self._cargar_datos()
         self._crear_usuarios_base()
     
     def _cargar_datos(self):
-        """Carga datos desde archivos JSON con manejo de errores robusto"""
-        # ============================================================
-        # CARGAR ROLES
-        # ============================================================
-        try:
-            if os.path.exists(self.archivo_roles):
-                with open(self.archivo_roles, 'r', encoding='utf-8') as f:
-                    self.roles = json.load(f)
-                if not isinstance(self.roles, dict):
-                    raise ValueError("Los roles no son un diccionario válido")
-            else:
-                self._crear_roles_base()
-                self._guardar_roles()
-        except (json.JSONDecodeError, ValueError) as e:
-            print(f"[WARN] Archivo {self.archivo_roles} corrupto: {e}")
-            print("[INFO] Regenerando roles...")
-            if os.path.exists(self.archivo_roles):
-                backup_file = self.archivo_roles + '.corrupto'
-                try:
-                    if os.path.exists(backup_file):
-                        os.remove(backup_file)
-                        print(f"[INFO] Backup anterior eliminado: {backup_file}")
-                    os.rename(self.archivo_roles, backup_file)
-                    print(f"[INFO] Backup guardado en: {backup_file}")
-                except Exception as be:
-                    print(f"[WARN] No se pudo hacer backup: {be}")
-                    try:
-                        os.remove(self.archivo_roles)
-                        print(f"[INFO] Archivo corrupto eliminado: {self.archivo_roles}")
-                    except:
-                        pass
-            self._crear_roles_base()
-            self._guardar_roles()
-        except Exception as e:
-            print(f"[ERROR] Error al cargar roles: {e}")
-            self._crear_roles_base()
-            self._guardar_roles()
-        
-        # ============================================================
-        # CARGAR USUARIOS
-        # ============================================================
-        try:
-            if os.path.exists(self.archivo_usuarios):
-                with open(self.archivo_usuarios, 'r', encoding='utf-8') as f:
-                    datos = json.load(f)
-                    if not isinstance(datos, dict):
-                        raise ValueError("Los usuarios no son un diccionario válido")
-                    for username, data in datos.items():
-                        self.usuarios[username] = Usuario.from_dict(data)
-            else:
-                self.usuarios = {}
-        except (json.JSONDecodeError, ValueError) as e:
-            print(f"[WARN] Archivo {self.archivo_usuarios} corrupto: {e}")
-            print("[INFO] Regenerando usuarios...")
-            if os.path.exists(self.archivo_usuarios):
-                backup_file = self.archivo_usuarios + '.corrupto'
-                try:
-                    if os.path.exists(backup_file):
-                        os.remove(backup_file)
-                    os.rename(self.archivo_usuarios, backup_file)
-                    print(f"[INFO] Backup guardado en: {backup_file}")
-                except Exception as be:
-                    print(f"[WARN] No se pudo hacer backup: {be}")
-                    try:
-                        os.remove(self.archivo_usuarios)
-                        print(f"[INFO] Archivo corrupto eliminado: {self.archivo_usuarios}")
-                    except:
-                        pass
-            self.usuarios = {}
-        except Exception as e:
-            print(f"[ERROR] Error al cargar usuarios: {e}")
-            self.usuarios = {}
-    
-    def _guardar_usuarios(self):
-        """Guarda usuarios en archivo"""
-        try:
-            datos = {username: usuario.to_dict() 
-                    for username, usuario in self.usuarios.items()}
-            with open(self.archivo_usuarios, 'w', encoding='utf-8') as f:
-                json.dump(datos, f, indent=2, ensure_ascii=False)
-        except Exception as e:
-            print(f"[ERROR] Error al guardar usuarios: {e}")
-    
-    def _guardar_roles(self):
-        """Guarda roles en archivo"""
-        try:
-            if not isinstance(self.roles, dict):
-                print(f"[ERROR] roles no es un diccionario válido: {type(self.roles)}")
-                return
-            
-            with open(self.archivo_roles, 'w', encoding='utf-8') as f:
-                json.dump(self.roles, f, indent=2, ensure_ascii=False)
-        except TypeError as e:
-            print(f"[ERROR] Error al guardar roles (TypeError): {e}")
-            self._crear_roles_base()
+        """Carga usuarios y roles delegando en el almacén central."""
+        # Sin try/except a propósito: con CENTRAL_STRICT=yes y sin almacén, `cargar`
+        # lanza RuntimeError y el arranque DEBE fallar (fail-closed, spec §13.3).
+        datos_u, datos_r, estado = config_central.cargar(
+            carpeta=self.carpeta_central, _local_dir=self.local_central,
+            _cache_dir=self.cache_central)
+
+        self.estado_central = estado
+        self._sello_actual = estado.get('sello')
+        # Las lápidas de rol NO entran a `self.roles` (spec §5): si entraran, un rol
+        # borrado en otra PC seguiría otorgando sus permisos hasta la poda de 90 días.
+        # Pero tampoco se descartan: hay que reenviarlas tal cual (con su `revision`)
+        # en cada guardado, como se hace con las lápidas de usuario.
+        nuevos_roles = {}
+        nuevas_lapidas_roles = {}
+        for rol_id, data in (datos_r or {}).items():
+            if not isinstance(data, dict):
+                continue
+            if data.get('eliminado'):
+                nuevas_lapidas_roles[rol_id] = data
+                continue
+            nuevos_roles[rol_id] = data
+        self.roles = nuevos_roles
+        self.lapidas_roles = nuevas_lapidas_roles
+
+        # Se arma en dicts locales y se asignan de una sola vez (swap atómico bajo
+        # el GIL): el server es threaded=True y un lector que viera `self.usuarios`
+        # vacío durante la recarga daría `datos_usuario_completo() is None` →
+        # session.clear() (logout espurio) o `tiene_permiso` False (403 espurio),
+        # justo mientras se aplica un cambio de permisos. No hace falta lock: una
+        # recarga duplicada es inofensiva.
+        nuevos_usuarios = {}
+        nuevas_lapidas = {}
+        for username, data in (datos_u or {}).items():
+            if not isinstance(data, dict):
+                continue
+            if data.get('eliminado'):
+                nuevas_lapidas[username] = data
+                continue
             try:
-                with open(self.archivo_roles, 'w', encoding='utf-8') as f:
-                    json.dump(self.roles, f, indent=2, ensure_ascii=False)
-                print("[INFO] Roles regenerados y guardados correctamente")
-            except Exception as e2:
-                print(f"[ERROR] No se pudo guardar roles después de regenerar: {e2}")
-        except Exception as e:
-            print(f"[ERROR] Error al guardar roles: {e}")
+                nuevos_usuarios[username] = Usuario.from_dict(data)
+            except (KeyError, TypeError) as e:
+                print(f'[WARN] Usuario {username} inválido en el almacén: {e}')
+
+        self.usuarios = nuevos_usuarios   # swap atómico: ningún lector ve el dict a medio armar
+        self.lapidas = nuevas_lapidas
+
+        # El fallback de roles base va DESPUÉS de cargar los usuarios: su guardado
+        # best-effort manda el estado completo, y si `self.usuarios` todavía fuera
+        # {} la red de seguridad de `guardar` sintetizaría una lápida por cada
+        # usuario del almacén (pérdida de datos en un store con usuarios y sin
+        # roles: spec §5).
+        if not self.roles:
+            self._crear_roles_base()
+            self._guardar_sin_bloquear('los roles base')
+
+        if estado.get('modo') == 'degradado':
+            print(f"[WARN] {estado.get('mensaje')}")
     
+    def _usuario_actual(self):
+        """Quién está haciendo el cambio (para modificado_por). Sin Flask = 'sistema'."""
+        try:
+            from flask import session
+            return session.get('username') or 'sistema'
+        except Exception:
+            return 'sistema'
+
+    def _datos_para_guardar(self):
+        datos = {username: usuario.to_dict()
+                 for username, usuario in self.usuarios.items()}
+        datos.update(self.lapidas)
+        return datos
+
+    def _roles_para_guardar(self):
+        """Roles vivos + lápidas de rol (espejo de `_datos_para_guardar`).
+
+        ⚠️ INVARIANTE: las lápidas van SIEMPRE al final del payload (igual que
+        `datos.update(self.lapidas)` en los usuarios). Si la memoria tiene un rol
+        vivo viejo y el disco ya tiene la lápida, tiene que ganar la LÁPIDA
+        (`m == b` → gana el disco) para que el borrado se propague. La vuelta a
+        crear un rol la resuelve el `self.lapidas_roles.pop(rol_id, None)` de
+        `crear_rol`, NO el orden del spread: invertirlo para "que gane el vivo"
+        resucita roles borrados por otra PC con todos sus permisos, sin conflicto
+        y propagado a todas las PCs.
+
+        Mandar `self.roles` solo (sin las lápidas) hacía que
+        `config_central.guardar` re-sintetizara cada lápida con `revision = now`
+        en CADA guardado: la poda de 90 días (spec §5) no las veía nunca y cada
+        escritura con base vieja dejaba un `conflictos_*` espurio por lápida."""
+        return {**self.roles, **self.lapidas_roles}
+
+    def _guardar_usuarios(self):
+        """Delega en el almacén central (o en data/ si no hay CENTRAL_DIR).
+
+        No atrapa nada: quien sabe cómo reportar es el caller (`_guardar_sin_bloquear`
+        avisa y sigue en arranque/login; la API de admin traduce a 503)."""
+        sello = config_central.guardar(self._datos_para_guardar(),
+                                       self._roles_para_guardar(),
+                                       cambiado_por=self._usuario_actual(),
+                                       carpeta=self.carpeta_central,
+                                       _local_dir=self.local_central,
+                                       _cache_dir=self.cache_central)
+        self._sello_actual = sello
+        self.estado_central = dict(self.estado_central, sello=sello)
+        self._refrescar_revisiones()
+
+    def _refrescar_revisiones(self):
+        """Pone en los objetos en memoria la `revision` que quedó ESCRITA.
+
+        `config_central.guardar` estampa la revisión en los dicts que escribe, no
+        en los objetos `Usuario`. Sin este refresco, un usuario creado o editado
+        en esta sesión seguiría con la revisión vieja (o `None`) y el próximo
+        merge lo volvería a ver "cambiado": el mismo defecto del CRITICAL 1, ahora
+        en los registros que toca esta PC.
+
+        Además RESINCRONIZA las lápidas en memoria con las que quedaron escritas:
+        `_podar_lapidas` puede haber quitado una lápida de más de 90 días, y si
+        siguiera en memoria el guardado siguiente la resucitaría con
+        `revision = now` (la base ya no la tiene y el disco tampoco): la poda del
+        spec §5 no se sostendría nunca.
+
+        Y todo rol cuya escritura quedó como LÁPIDA (lo borró otra PC mientras
+        esta tenía la memoria vieja, o lo borró este proceso) sale de `self.roles`:
+        si no, seguiría listándose y otorgando permisos en esta PC hasta la
+        recarga por sello. Las lápidas van al final del payload (ver
+        `_roles_para_guardar`) y eso evita la resurrección en el ALMACÉN; este
+        `pop` la evita en MEMORIA."""
+        escrito = config_central.ultimo_escrito()
+        escritos = escrito.get('usuarios') or {}
+        for username, usuario in self.usuarios.items():
+            rec = escritos.get(username)
+            if isinstance(rec, dict):
+                usuario.revision = rec.get('revision')
+                usuario.modificado_por = rec.get('modificado_por')
+        self.lapidas = {k: v for k, v in escritos.items()
+                        if isinstance(v, dict) and v.get('eliminado')}
+        escritos_r = escrito.get('roles') or {}
+        self.lapidas_roles = {k: v for k, v in escritos_r.items()
+                              if isinstance(v, dict) and v.get('eliminado')}
+        for rol_id in self.lapidas_roles:
+            self.roles.pop(rol_id, None)
+
+    def _guardar_roles(self):
+        """Igual que _guardar_usuarios, pero solo cambian los roles."""
+        self._guardar_usuarios()
+
+    def _guardar_sin_bloquear(self, contexto):
+        """Guardado best-effort del arranque/login: si el almacén está configurado y
+        no se puede escribir, avisa y sigue (spec §7: el fallback mantiene el ERP
+        operativo). Las operaciones de ADMIN no usan esto: ellas propagan
+        AlmacenNoDisponible para que la API devuelva 503."""
+        try:
+            self._guardar_usuarios()
+            return True
+        except (config_central.AlmacenNoDisponible, OSError) as e:
+            print(f'[WARN] No se pudo persistir {contexto} (almacén central no disponible): {e}')
+            return False
+
     def _crear_roles_base(self):
         """Crea los roles base del sistema (set canónico, espejo de roles.json)"""
         # ⚠️ Set CANÓNICO de roles. Debe coincidir con data/roles.json (fuente
@@ -348,73 +454,60 @@ class GestorUsuarios:
         }
     
     def _crear_usuarios_base(self):
-        # ============================================================
-        # 1. CREAR SUPERADMIN (FORZADO - SIEMPRE pmolina)
-        # ============================================================
-        # ✅ FORZAR superadmin con tus datos (SIEMPRE)
+        """Garantiza que exista el superadmin. NO crea usuarios de desarrollo
+        (decisión 12/09: el usuario 'prueba' se elimina de todas las instalaciones)
+        y NUNCA pisa un registro que ya venga del almacén (arreglo 13.1 #1)."""
+        if SUPERADMIN_USERNAME in self.usuarios:
+            return
+        if SUPERADMIN_USERNAME in self.lapidas:
+            print(f'[WARN] {SUPERADMIN_USERNAME} está marcado como eliminado: no se recrea')
+            return
+
         superadmin = Usuario(
-            username="pmolina",
+            username=SUPERADMIN_USERNAME,
             password=None,
-            email="pedro.molina@sidesys.com",
-            nombre="Super Administrador"
+            email=SUPERADMIN_EMAIL,
+            nombre='Super Administrador'
         )
         superadmin.es_superadmin = True
-        superadmin.roles = ["superadmin"]
-        superadmin.bases_permitidas = ["*"]
-        superadmin.modulos_permitidos = ["*"]
+        superadmin.roles = ['superadmin']
+        superadmin.bases_permitidas = ['*']
+        superadmin.modulos_permitidos = ['*']
         superadmin.usar_sso = True
-        self.usuarios["pmolina"] = superadmin  # ← FORZAR sobrescritura
-    
-        print("=" * 60)
-        print("  👑 SUPERADMIN CREADO (FORZADO)")
-        print("=" * 60)
-        print(f"  Usuario Windows: pmolina")
-        print(f"  Email: pedro.molina@sidesys.com")
-        print()
-        print("  ✅ Este es el usuario con MÁXIMOS PRIVILEGIOS")
-        print("=" * 60)
-    
-        # ============================================================
-        # 2. CREAR USUARIO PRUEBA (si no existe)
-        # ============================================================
-        if "prueba" not in self.usuarios:
-            prueba = Usuario(
-                username="prueba",
-                password=PRUEBA_PASSWORD,
-                email="prueba@sidesys.com",
-                nombre="Usuario de Prueba"
-            )
-            prueba.roles = ["invitado"]
-            prueba.bases_permitidas = ["*"]
-            prueba.modulos_permitidos = ["*"]
-            prueba.es_usuario_prueba = True
-            prueba.usar_sso = False
-            self.usuarios["prueba"] = prueba
-        
-            print("=" * 60)
-            print("  🧪 USUARIO DE PRUEBA CREADO")
-            print("=" * 60)
-            print("  Usuario: prueba")
-            print("  Contraseña: ******** (oculta)")
-            print("  Rol: invitado")
-            print("=" * 60)
-    
-            self._guardar_usuarios()
-    
+        self.usuarios[SUPERADMIN_USERNAME] = superadmin
+        if self._guardar_sin_bloquear('el superadmin inicial'):
+            print(f'[INFO] Superadmin {SUPERADMIN_USERNAME} creado en el almacén')
+        else:
+            print(f'[INFO] Superadmin {SUPERADMIN_USERNAME} creado en memoria '
+                  f'(se persistirá cuando el almacén esté disponible)')
+
     # ============================================================
     # MÉTODOS DE GESTIÓN
     # ============================================================
     
+    @_reversible
     def crear_usuario(self, username: str, email: str = None, 
                      nombre: str = None, roles: List[str] = None,
                      usar_sso: bool = True) -> bool:
         if username in self.usuarios:
             raise ValueError(f"El usuario {username} ya existe")
-        
+
+        # Mismo guard que en `editar_usuario`: sin esto, un administrador (tiene
+        # `admin.usuarios.crear`) podía dar de alta un usuario con el rol
+        # `superadmin` — la lista completa de permisos — y usarlo. Va ANTES de
+        # tocar cualquier estado (lápidas, `self.usuarios`).
+        if 'superadmin' in (roles or []):
+            if not self.es_superadmin(self._usuario_actual()):
+                raise ValueError('Solo un superadmin puede asignar el rol superadmin')
+
         if roles:
             for rol in roles:
                 if rol not in self.roles:
                     raise ValueError(f"El rol {rol} no existe")
+        
+        # Recrear un usuario que estaba borrado: la lápida se descarta, si no
+        # `_datos_para_guardar` la reenviaría y el alta nunca persistiría.
+        self.lapidas.pop(username, None)
         
         usuario = Usuario(
             username=username,
@@ -430,6 +523,7 @@ class GestorUsuarios:
         self._guardar_usuarios()
         return True
     
+    @_reversible
     def generar_contraseña_usuario_prueba(self) -> str:
         if "prueba" not in self.usuarios:
             raise ValueError("El usuario 'prueba' no existe")
@@ -444,6 +538,7 @@ class GestorUsuarios:
         self._guardar_usuarios()
         return nueva_password
     
+    @_reversible
     def editar_usuario(self, username: str, **kwargs) -> bool:
         if username not in self.usuarios:
             raise ValueError(f"El usuario {username} no existe")
@@ -453,6 +548,21 @@ class GestorUsuarios:
         # ✅ No permitir modificar al superadmin
         if usuario.es_superadmin:
             raise ValueError("No puedes modificar al superadmin")
+
+        # El rol superadmin no se puede asignar sin ser superadmin: si no, un
+        # administrador con `admin.usuarios.editar` podía escalar privilegios
+        # (la API de admin recibe `roles` del cuerpo). El endpoint además filtra
+        # las claves, así que `es_superadmin` no es editable por esa vía.
+        if 'roles' in kwargs and 'superadmin' in (kwargs['roles'] or []):
+            if not self.es_superadmin(self._usuario_actual()):
+                raise ValueError('Solo un superadmin puede asignar el rol superadmin')
+
+        # Defensa en profundidad: la API bloquea `es_superadmin` por whitelist, pero
+        # un caller interno (o un endpoint nuevo que reenvíe el cuerpo) podía
+        # saltarla. Mismo criterio que el guard del rol: sin ser superadmin, no.
+        if 'es_superadmin' in kwargs:
+            if not self.es_superadmin(self._usuario_actual()):
+                raise ValueError('Solo un superadmin puede cambiar es_superadmin')
         
         if 'password' in kwargs and usuario.usar_sso:
             raise ValueError("Los usuarios con SSO no pueden tener contraseña")
@@ -478,6 +588,7 @@ class GestorUsuarios:
         self._guardar_usuarios()
         return True
     
+    @_reversible
     def eliminar_usuario(self, username: str) -> bool:
         if username not in self.usuarios:
             raise ValueError(f"El usuario {username} no existe")
@@ -487,13 +598,13 @@ class GestorUsuarios:
         if usuario.es_superadmin:
             raise ValueError("No se puede eliminar al superadmin")
         
-        if username == "prueba":
-            raise ValueError("No se puede eliminar al usuario de prueba")
-        
+        self.lapidas[username] = config_central.marcar_lapida(
+            usuario.to_dict(), self._usuario_actual())
         del self.usuarios[username]
         self._guardar_usuarios()
         return True
     
+    @_reversible
     def bloquear_usuario(self, username: str) -> bool:
         if username not in self.usuarios:
             raise ValueError(f"El usuario {username} no existe")
@@ -508,6 +619,7 @@ class GestorUsuarios:
         self._guardar_usuarios()
         return True
     
+    @_reversible
     def desbloquear_usuario(self, username: str) -> bool:
         if username not in self.usuarios:
             raise ValueError(f"El usuario {username} no existe")
@@ -521,6 +633,7 @@ class GestorUsuarios:
     # MÉTODOS DE VERIFICACIÓN
     # ============================================================
     
+    @_reversible
     def verificar_credenciales(self, username: str, password: str) -> Optional[Usuario]:
         if username not in self.usuarios:
             return None
@@ -546,12 +659,12 @@ class GestorUsuarios:
             if usuario.intentos_fallidos >= 5:
                 usuario.bloqueado = True
             
-            self._guardar_usuarios()
+            self._guardar_sin_bloquear('el intento de acceso')
             return None
         
         usuario.intentos_fallidos = 0
         usuario.ultimo_acceso = datetime.now().isoformat()
-        self._guardar_usuarios()
+        self._guardar_sin_bloquear('el último acceso')
         return usuario
     
     def obtener_permisos_usuario(self, username: str) -> List[str]:
@@ -667,6 +780,33 @@ class GestorUsuarios:
             'permisos_restringidos': list(usuario.permisos_restringidos)
         }
 
+    def recargar_si_cambio(self, forzar: bool = False) -> bool:
+        """Recarga del almacén si el sello cambió (spec §6.3).
+
+        Throttle: consulta el sello como mucho una vez cada CENTRAL_RELOAD_SEG
+        segundos, así se puede llamar en cada request sin costo.
+        """
+        ahora = time.monotonic()
+        if not forzar and (ahora - self._ultimo_chequeo) < self._reload_seg:
+            return False
+        self._ultimo_chequeo = ahora
+
+        sello = config_central.leer_sello(carpeta=self.carpeta_central)
+        if sello is None:
+            # `leer_sello` devuelve None tanto si el sello FALTA (modo local o
+            # almacén todavía sin sello: no hay nada que recargar) como si el
+            # `sello.json` está ilegible. Un sello roto por un conflicto de
+            # OneDrive congelaba la propagación en todas las PCs hasta la próxima
+            # escritura: si el archivo existe y no se puede leer, se recarga.
+            if not config_central.sello_ilegible(self.carpeta_central):
+                return False
+        elif sello == self._sello_actual:
+            return False
+
+        print(f'[INFO] Almacén central cambió (sello {str(sello)[:8]}): recargando usuarios/roles')
+        self._cargar_datos()
+        return True
+
     # ============================================================
     # MÉTODOS PARA ADMIN
     # ============================================================
@@ -733,11 +873,18 @@ class GestorUsuarios:
             "permisos": self.obtener_permisos_usuario(username)
         }
     
+    @_reversible
     def crear_rol(self, rol_id: str, nombre: str, descripcion: str, 
                  permisos: List[str], nivel: int = 0, color: str = "#6c757d") -> bool:
         if rol_id in self.roles:
             raise ValueError(f"El rol {rol_id} ya existe")
-        
+
+        # Recrear un rol que estaba borrado: la lápida se descarta, si no
+        # `_roles_para_guardar` la reenviaría y el merge conservaría el registro
+        # borrado (`m == b` → gana el disco): el rol nuevo no se escribiría nunca
+        # aunque en memoria quedara vivo. Mismo criterio que en `crear_usuario`.
+        self.lapidas_roles.pop(rol_id, None)
+
         self.roles[rol_id] = {
             "id": rol_id,
             "nombre": nombre,
@@ -750,6 +897,7 @@ class GestorUsuarios:
         self._guardar_roles()
         return True
     
+    @_reversible
     def editar_rol(self, rol_id: str, **kwargs) -> bool:
         if rol_id not in self.roles:
             raise ValueError(f"El rol {rol_id} no existe")
@@ -761,6 +909,7 @@ class GestorUsuarios:
         self._guardar_roles()
         return True
     
+    @_reversible
     def eliminar_rol(self, rol_id: str) -> bool:
         if rol_id not in self.roles:
             raise ValueError(f"El rol {rol_id} no existe")
@@ -777,6 +926,8 @@ class GestorUsuarios:
                 f"No se puede eliminar el rol porque está asignado a: {', '.join(usuarios_con_rol)}"
             )
         
+        # La lápida la sintetiza `guardar()`: el rol estaba en la base del merge y ya
+        # no viene en el estado deseado, así el borrado se propaga a las otras PCs.
         del self.roles[rol_id]
         self._guardar_roles()
         return True
@@ -796,6 +947,7 @@ class GestorUsuarios:
             "permisos_totales": len(PermisosSistema.obtener_todos_permisos())
         }
 
+    @_reversible
     def asignar_rol_admin(self, username: str) -> bool:
         if username not in self.usuarios:
             raise ValueError(f"El usuario {username} no existe")
@@ -812,6 +964,7 @@ class GestorUsuarios:
         self._guardar_usuarios()
         return True
     
+    @_reversible
     def quitar_rol_admin(self, username: str) -> bool:
         if username not in self.usuarios:
             raise ValueError(f"El usuario {username} no existe")

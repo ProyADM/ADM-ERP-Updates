@@ -330,6 +330,18 @@ print(f"[INFO] BASE_DEFAULT = {BASE_DEFAULT}")
 print(f"[INFO] SOCIEDAD_DEFAULT = {SOCIEDAD_DEFAULT}")
 
 # ============================================================
+# ALMACÉN CENTRAL DE USUARIOS Y ROLES (ver docs/superpowers/specs)
+# ============================================================
+# CENTRAL_DIR vacía = se intenta autodetectar %OneDriveCommercial%\Sidesys\ADM-ERP\config
+# y, si no existe, se usa data/ local (comportamiento histórico).
+CENTRAL_DIR = get_env("CENTRAL_DIR", "") or ""
+CENTRAL_RELOAD_SEG = get_env("CENTRAL_RELOAD_SEG", "15")
+CENTRAL_STRICT = get_env("CENTRAL_STRICT", "no")
+
+print(f"[INFO] CENTRAL_DIR = {CENTRAL_DIR or '(autodetección / data/ local)'}")
+print(f"[INFO] CENTRAL_RELOAD_SEG = {CENTRAL_RELOAD_SEG} · CENTRAL_STRICT = {CENTRAL_STRICT}")
+
+# ============================================================
 # BASES PARA COTIZACIONES (CxP)
 # ============================================================
 
