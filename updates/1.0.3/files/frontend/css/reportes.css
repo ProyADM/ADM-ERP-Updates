@@ -1,0 +1,197 @@
+/* ============================================================
+   REPORTES - Estilos específicos
+   ============================================================ */
+
+.reportes-header {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.filtros-reporte {
+    display: flex;
+    gap: 15px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    margin-top: 15px;
+}
+
+.filtro-grupo {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.filtro-grupo label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+}
+.filtro-grupo .form-control {
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 14px;
+    min-width: 120px;
+}
+
+.btn-success {
+    background: #22c55e;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+}
+.btn-success:hover { background: #16a34a; }
+
+.btn-moneda {
+    padding: 8px 24px;
+    border-radius: 8px;
+    border: 2px solid #2563eb;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.btn-moneda.active {
+    background: #2563eb;
+    color: white;
+    box-shadow: 0 2px 8px rgba(37,99,235,0.3);
+}
+.btn-moneda:not(.active) {
+    background: white;
+    color: #2563eb;
+}
+.btn-moneda[data-moneda="DL"]:not(.active) {
+    border-color: #16a34a;
+    color: #16a34a;
+}
+.btn-moneda[data-moneda="DL"].active {
+    background: #16a34a;
+    border-color: #16a34a;
+    box-shadow: 0 2px 8px rgba(22,163,74,0.3);
+}
+
+/* Contenedor de tabla */
+.tabla-container {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 20px;
+    overflow: auto;
+    max-height: calc(100vh - 320px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+}
+
+.tabla-container table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    min-width: 800px;
+}
+
+.tabla-container table thead {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+}
+.tabla-container table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 21;
+    background: #f1f5f9 !important;
+    border-bottom: 2px solid #e2e8f0 !important;
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 600;
+    color: #1a1a2e;
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.tabla-container table tfoot {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    background: #f8fafc !important;
+}
+.tabla-container table tfoot td {
+    position: sticky;
+    bottom: 0;
+    z-index: 21;
+    background: #f8fafc !important;
+    border-top: 2px solid #e2e8f0 !important;
+    padding: 10px 12px;
+    font-weight: 700;
+    color: #1a1a2e;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
+}
+
+.tabla-container table tbody td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #f1f5f9;
+    white-space: nowrap;
+}
+.tabla-container table tbody tr:hover td {
+    background: #f8fafc;
+}
+.tabla-container table tbody tr:last-child td {
+    border-bottom: none;
+}
+.tabla-container table td.text-right,
+.tabla-container table th.text-right {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+#tabla-dinamica {
+    overflow: visible;
+}
+
+/* Resumen anual */
+#resumen-anual {
+    overflow: auto;
+    max-height: 300px;
+}
+#resumen-anual table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+#resumen-anual table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+#resumen-anual table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 11;
+    background: #f1f5f9 !important;
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid #e2e8f0;
+}
+#resumen-anual table tfoot {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+}
+#resumen-anual table tfoot td {
+    position: sticky;
+    bottom: 0;
+    z-index: 11;
+    background: #f8fafc !important;
+    border-top: 2px solid #e2e8f0 !important;
+    padding: 8px 12px;
+    font-weight: 700;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
+}
+#resumen-anual table td {
+    padding: 6px 12px;
+    border-bottom: 1px solid #f1f5f9;
+}
