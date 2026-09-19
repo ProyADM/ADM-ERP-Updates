@@ -1,0 +1,386 @@
+{
+  "app.py": {
+    "hash": "3b7e86112056f5d53c94ed78db54954e988ebe7ae55c5c5e7032318305e7e4c4",
+    "size": 68573
+  },
+  "config.py": {
+    "hash": "82de40d7488ebc61c9bd0faf2967406ffc6d2cb071f95b852a4f4c72ad9bd0fb",
+    "size": 15436
+  },
+  "crypto_utils.py": {
+    "hash": "3820ef77e2c06a2574af2e724acaf3ae4f029487b2975ea473646aa1e687d2ec",
+    "size": 16377
+  },
+  "cuentas.py": {
+    "hash": "33840167ce77a16fba8737b466c486dbe02a9a63a0a6c3d5358d467221b57d22",
+    "size": 4277
+  },
+  "frontend/app.js": {
+    "hash": "ef4cbe7f911a91fcd01f85f40bd1a5796335c7d3d2aa542223b9348091e1adf2",
+    "size": 64240
+  },
+  "frontend/css/admin.css": {
+    "hash": "eb63e9835ea635a27fa741eabe0ee0fc216cfdf898b7f6b16d87f28043df86fd",
+    "size": 9901
+  },
+  "frontend/css/cotizaciones.css": {
+    "hash": "8b3053c230b8bb787e6d23f0f8e99240da66d7303de64fdc2cd90481334a4ac7",
+    "size": 288
+  },
+  "frontend/css/cxp.css": {
+    "hash": "717d697296d928923f87d3fb8d817391c24ba0a4d4a4aa656564cd95f42c0324",
+    "size": 16833
+  },
+  "frontend/css/dashboard.css": {
+    "hash": "261b02e40c35b2d78e6b1b174597f4667b7e6f872b30932dc5e8f0ca8ce87691",
+    "size": 3057
+  },
+  "frontend/css/global.css": {
+    "hash": "71ceff152e582873e9dbb042007e01e5a1833c83348394f2d9818a543905b335",
+    "size": 17351
+  },
+  "frontend/css/reportes.css": {
+    "hash": "cbff779e0e5be9da1e4876f3ca417e9b0a93bd5cb8d7b8e4472b4ba919f9f18f",
+    "size": 4365
+  },
+  "frontend/css/stock.css": {
+    "hash": "78e18b5f9c078b6aadb3ff704584aa649e8a11df1131a9cb2993ee25f9505f93",
+    "size": 13067
+  },
+  "frontend/index.html": {
+    "hash": "aad54aa8f39d7ace14dde21d29043b7791320f444a0ae444323ddae7a274b442",
+    "size": 23825
+  },
+  "frontend/modules/admin/accesos.js": {
+    "hash": "0583a2c3077956fdd3943c88105eb211908126704c66a012973939e25de2aca7",
+    "size": 5961
+  },
+  "frontend/modules/admin/api.js": {
+    "hash": "ac58fd8efa3aac2b6d6f0b4f8c8d65fff13aba66e412e66d8dbe0ceed3540285",
+    "size": 2112
+  },
+  "frontend/modules/admin/auditoria.js": {
+    "hash": "e2dd8feb0234f21788a4545af9000615e5d24e3f6da7d539846142d5927e77c0",
+    "size": 3433
+  },
+  "frontend/modules/admin/diagnostico.js": {
+    "hash": "4e47940ca5b2bfa6b8a52bf0adf0fcf5f568c1c6d987c1ffdec667b950a23efb",
+    "size": 19014
+  },
+  "frontend/modules/admin/estado.js": {
+    "hash": "1f03847b7a841cfa8756307c333718c9947e15fc71cc7978844c42eeb0512d8f",
+    "size": 9392
+  },
+  "frontend/modules/admin/index.js": {
+    "hash": "7d1742e7573a5dc3bd73904cf64d431d0156cce0f2ec9df5dad6d2b5b3ae4b93",
+    "size": 22198
+  },
+  "frontend/modules/admin/roles.js": {
+    "hash": "0ca879771209969826efae8f68132edbcbe85bbc0a7416a0f624b0fc3029c473",
+    "size": 14076
+  },
+  "frontend/modules/admin/template.js": {
+    "hash": "0b0701731f5753a81c39b7a01b1aa3abc54614a18dae8d929d241c37283208e1",
+    "size": 1853
+  },
+  "frontend/modules/admin/usuarios.js": {
+    "hash": "b25a42054f90fef37d57863de02800e4fdd3c04ef38bd2acdeb20ee588058f6d",
+    "size": 21947
+  },
+  "frontend/modules/cotizaciones.js": {
+    "hash": "24462693a067bce1f2128094570c33fece4a5bfad17378fad3c8bfd1253d4e11",
+    "size": 19353
+  },
+  "frontend/modules/cxp/eliminar.js": {
+    "hash": "e72c77fe4d0f90cb06cd924fb9aafd65a009e0aafbbb2cd342e97d188343b852",
+    "size": 6253
+  },
+  "frontend/modules/cxp/eventuales.js": {
+    "hash": "9362c4a52f559c4ec962c6b5b645636be3ca04ba084a7422fa9324261e62e280",
+    "size": 1457
+  },
+  "frontend/modules/cxp/index.js": {
+    "hash": "d5576f4958bf6545af6cd8e4fae4e39173020edc99c9c93f0e4de07b864a519b",
+    "size": 2785
+  },
+  "frontend/modules/cxp/init.js": {
+    "hash": "2e831a442822e4a8a8d078e9f7ba3cd40cc0c2a2421caa28af411eaa4771b094",
+    "size": 10529
+  },
+  "frontend/modules/cxp/main.js": {
+    "hash": "a37798db180af867abe80412618d5f213cae4420cfc986340b171e65eac259cb",
+    "size": 15438
+  },
+  "frontend/modules/cxp/render.js": {
+    "hash": "d36a51bc219c7f9b1abdcdc410206f24195b6a1e6f1eede5133d7ff78eff521b",
+    "size": 14846
+  },
+  "frontend/modules/cxp/renglones.js": {
+    "hash": "f100d830f009d362d0c1bbd83e4ff34ad5abbe6d5fbf7b2aa3630ca709dcc0bb",
+    "size": 15982
+  },
+  "frontend/modules/cxp/ui.js": {
+    "hash": "c3fc33fdc455e63f9ebf3b197283c465f76e0a43761f5a83626da4fd499ac162",
+    "size": 6321
+  },
+  "frontend/modules/cxp/utils.js": {
+    "hash": "30d55634f6569d17f13488286b1539af95d8226baa3ff6d3a45aa8ddc9cfc76b",
+    "size": 4856
+  },
+  "frontend/modules/dashboard.js": {
+    "hash": "d82771514335e23559ff7273b35ef6b3d3103865055ab57d5dac99b1419beb45",
+    "size": 4037
+  },
+  "frontend/modules/init.js": {
+    "hash": "e0833fd595e5208f1a71075acaf0321fea988d3c45396beffa74109ef6b87040",
+    "size": 6987
+  },
+  "frontend/modules/notificaciones.js": {
+    "hash": "a79293943d6f5f3557b0eaaf838f4a44817e7677e23a9d35c079a8fd9ddd7861",
+    "size": 7084
+  },
+  "frontend/modules/reportes/consolidado_pais.js": {
+    "hash": "4284cd5598d96933fd44e8c204860286127778dbdc0ba1cd563a3b8908cefba8",
+    "size": 23653
+  },
+  "frontend/modules/reportes/consolidado_total.js": {
+    "hash": "c34f4816628158f1f8fc185d5c1be3a8cf02362fe1ffafb20db5c9444be5d7be",
+    "size": 29385
+  },
+  "frontend/modules/reportes/contratos.js": {
+    "hash": "2f4cff3dbecd8e6af8f1211b174c49b1e43d78c4b01cf7213006038af67ac5b5",
+    "size": 21789
+  },
+  "frontend/modules/reportes/index.js": {
+    "hash": "e3df0b3d72eae777dd8a0ec1eb67352aa15ea300b571a678b7fba2420df1f5e4",
+    "size": 9607
+  },
+  "frontend/modules/reportes/pendiente_cobro.js": {
+    "hash": "1e656f444870a8e76001c8396859507347d3b7a174083b5c283e0f154a002de7",
+    "size": 18622
+  },
+  "frontend/modules/reportes/ventas_manuales.js": {
+    "hash": "c6773e703bd54504c72b29aa18ea43c076637207575a3951dbc858379ce86b31",
+    "size": 18004
+  },
+  "frontend/modules/shared/paises.js": {
+    "hash": "b3a255ba9ebfe8d949982b709366d880edd284e0a0fa3b1ebf8829c49ee40c84",
+    "size": 2265
+  },
+  "frontend/modules/shared/seguridad.js": {
+    "hash": "c4ca95800525be2f648bdd5ffbc65e8175ab950110ef6c1a8d767e04933c2522",
+    "size": 1241
+  },
+  "frontend/modules/shared/tooltip-component.js": {
+    "hash": "fd57e125f29de6a31c3ea187c28ccda4c7acccf45c956784f98ec22bc459d0b6",
+    "size": 11127
+  },
+  "frontend/modules/shared/tooltips.js": {
+    "hash": "f305b19d469cf9e7d76ec36835e3452602f072d0cafbdae1e33f9f31f736d52a",
+    "size": 32286
+  },
+  "frontend/modules/stock/ajustes.js": {
+    "hash": "e123099f18cd4dca16d6c637ea5c58d2d50a763cfba431382316a22351a4eeca",
+    "size": 12269
+  },
+  "frontend/modules/stock/articulos.js": {
+    "hash": "5aad8084c3d6a6198600de1a3bc480504a4fac27b9d6bc3c68abcacc6909f97f",
+    "size": 9203
+  },
+  "frontend/modules/stock/consolidado.js": {
+    "hash": "52b98654562bbdedd8a6e7a806b5b2328eefd382b839860d4c84ad63719ce3df",
+    "size": 17853
+  },
+  "frontend/modules/stock/consultar.js": {
+    "hash": "9f36a0e15c7f03545808fea432c70ddc8cab245b5663903999c589540ddd5ed8",
+    "size": 9917
+  },
+  "frontend/modules/stock/depositos.js": {
+    "hash": "19adc46b6de62ea371c639bc69ae6015834d6efbd7ddb0e247a8eb42789b4bd7",
+    "size": 3439
+  },
+  "frontend/modules/stock/excel.js": {
+    "hash": "fb832b2e92677247a270d969c050ca4483be29dd924aacf67b8c34ce0290af85",
+    "size": 3543
+  },
+  "frontend/modules/stock/index.js": {
+    "hash": "dc8540d7f6d0c60ece75992299ba2b33b127b200fb35353fafd591ce09eae8b6",
+    "size": 3801
+  },
+  "frontend/modules/stock/transferencias.js": {
+    "hash": "1d0e37db81978acd7f6c0e21c7f13cd0b6ff664064d01192c7b8f18681cae48b",
+    "size": 6015
+  },
+  "frontend/modules/stock/utils.js": {
+    "hash": "fc46c28b9a6efd81093871f7d006108ec3e7032ad3099147f9f3cc5960b3fe3b",
+    "size": 12061
+  },
+  "frontend/modules/templates.js": {
+    "hash": "b8527424a0f33c850cfe9926c4d5de8aaa3cb7cdc7d51908da967aa88fcb76d6",
+    "size": 55843
+  },
+  "modules/__init__.py": {
+    "hash": "86523d3e92614adaf18f612147310c0b27037896e1beb5daa90fbf6fcd9fc3e2",
+    "size": 165
+  },
+  "modules/cotizaciones/__init__.py": {
+    "hash": "ea3e1f76e8983967ad6ef14f60a9fddcfd8f0a2ff25b672ac36e971f442da171",
+    "size": 68
+  },
+  "modules/cotizaciones/routes.py": {
+    "hash": "e6dec5ffec154825ac790736fe81eae9422c12a2df34fce16018d38384df8159",
+    "size": 23990
+  },
+  "modules/cxp/__init__.py": {
+    "hash": "fb3dbf0090618e7147e8374208193cb9d5b04f5129b4e4cce639f10bda77e1aa",
+    "size": 456
+  },
+  "modules/cxp/parser.py": {
+    "hash": "7d82fbbd83e4764829d9c2db62cb19b368e2bc8a14598fc0ab791a2d235f3dd5",
+    "size": 15131
+  },
+  "modules/cxp/routes.py": {
+    "hash": "986198cc2d6f152cba23f06f2ceb1806c2a061ca69b1ac31ea87619036d3e7d5",
+    "size": 36484
+  },
+  "modules/cxp/servicio_comprobantes.py": {
+    "hash": "d2cff50413f3c61fc3a5c8cc54f4c4168fd39538a956f6c83e13a681a88eea4b",
+    "size": 82082
+  },
+  "modules/reportes/__init__.py": {
+    "hash": "f2604f0ba984dcf149f95886224b6037a4678f72c89278370a34630a4598f76f",
+    "size": 92
+  },
+  "modules/reportes/config_clientes.py": {
+    "hash": "3378c167679176a0f0a5485732c12f6a11a2fc99ea66271f6b62e41492ba18b5",
+    "size": 5175
+  },
+  "modules/reportes/routes.py": {
+    "hash": "6d48bdf4b1bed9834cd708107f063c006b8d44a6c0e9633f3b9170c7dd9d95e4",
+    "size": 18982
+  },
+  "modules/reportes/services/__init__.py": {
+    "hash": "f75696ef12525794f3ae0210d48b312104dc5bada5c6d5757c77eed88a320522",
+    "size": 231
+  },
+  "modules/reportes/services/consolidado_pais_service.py": {
+    "hash": "0e01e5b239609ae6902cd2606a35d6f4fa690010daa922bd40205e426f40a40f",
+    "size": 12376
+  },
+  "modules/reportes/services/consolidado_total_service.py": {
+    "hash": "d38fa985adb7fbeaa79bc1d1e99a71be471f60bc4bd52298045762ab10500e75",
+    "size": 11452
+  },
+  "modules/reportes/services/contratos_service.py": {
+    "hash": "16c9fc85dd67bf846b0db15f94c5d5aa382a9e6a910042246c9d80ed7137eba0",
+    "size": 4749
+  },
+  "modules/reportes/services/pendiente_cobro_service.py": {
+    "hash": "0dec4dcae848110362bd200bd3fec2c039a8f126e5e7f0ca40ebf6039e7abec9",
+    "size": 6502
+  },
+  "modules/reportes/services/utils.py": {
+    "hash": "2a9529c76adbb2ab79106e132d5e584f3ee744f67fdc9f3aee1e43ba04561089",
+    "size": 12492
+  },
+  "modules/reportes/services/ventas_cuentas.py": {
+    "hash": "2849f32c99a48c4a2eec619660e90ef17214df6832c597b548f729e3196cc6a0",
+    "size": 5750
+  },
+  "modules/reportes/services/ventas_manuales_service.py": {
+    "hash": "1a4e24ec26a011452167b2551caff1939ae0113e6558c9c182ce786e25037024",
+    "size": 12413
+  },
+  "modules/shared/__init__.py": {
+    "hash": "dff4d921f4acbd4664f218f2db9781fcc7dcfb7467855942c319e5a9a14fdecb",
+    "size": 354
+  },
+  "modules/shared/admin_api.py": {
+    "hash": "b929aae9fef8533370500287508e766c899c2323231e2fb39ba4c304dc5cdf1f",
+    "size": 37560
+  },
+  "modules/shared/auth.py": {
+    "hash": "adfe5d8853dde969ab7a9c4b49d9485f788de77ebc4dab1b0807f00f781cc1a6",
+    "size": 14946
+  },
+  "modules/shared/auth_windows.py": {
+    "hash": "a577a03d8d966c0cb499da47c17f6a817e937e9c30527669311544e6cf08a8ec",
+    "size": 11238
+  },
+  "modules/shared/config_central.py": {
+    "hash": "9f5f7898c305bead1fa76e53f8270b2fe2b6a28500869041bc57a50791752590",
+    "size": 30185
+  },
+  "modules/shared/dashboard.py": {
+    "hash": "e2a393104016dd6d34807a9a98d87a245b33b078a9230d7d11740cc159b523c5",
+    "size": 8076
+  },
+  "modules/shared/database.py": {
+    "hash": "05535570d581610c75fb5d6143255775b5ac6be92fd74cdf32705b64cdabb71d",
+    "size": 13040
+  },
+  "modules/shared/decorators.py": {
+    "hash": "8d9de26ce01d7b942f8a762c6cd6cdf9d5852274ec9199021b8615762c47bf09",
+    "size": 15479
+  },
+  "modules/shared/diagnostico.py": {
+    "hash": "ac0d5d99bd5418ffbc4bd4b6210736d9496dd6fdc677a819622253992d24c28a",
+    "size": 25116
+  },
+  "modules/shared/idempotencia.py": {
+    "hash": "0782e7d9f0b10fa2a2f7581165e3c9c6ad27129cb620a88c1f2e9d42c9c80ac7",
+    "size": 11161
+  },
+  "modules/shared/middleware.py": {
+    "hash": "73eb393a46ec6664fd824c9b888c842b4fbd19d6ae3cacc385d174a2a8d1fb68",
+    "size": 6243
+  },
+  "modules/shared/permisos.py": {
+    "hash": "50817dfc7dfe13a2c9baf36dde03fd023016576548e52dfd417499e4943016c0",
+    "size": 16811
+  },
+  "modules/shared/relanzar.py": {
+    "hash": "fd4a32071ceff48107ad6c6486900eb4a0df21005e0aed62b120f9efc35ab3f6",
+    "size": 3106
+  },
+  "modules/shared/routes.py": {
+    "hash": "7ff84c5c4feda4acae79ec20d5087978e71170da5b3f1110b63a9143bf696b60",
+    "size": 10077
+  },
+  "modules/shared/update_firma.py": {
+    "hash": "ef2a8e4b22b60e02405a6679e461704b49d505fd40c9c303fa664cbcb4bb5af8",
+    "size": 3278
+  },
+  "modules/shared/update_politica.py": {
+    "hash": "dc7e21f707f3ee2877f079ab7607d8a6f5a9f95e8fc51e9aac9565327b8e6002",
+    "size": 5043
+  },
+  "modules/shared/usuarios.py": {
+    "hash": "427d29fdd7ec59b9b854847be682a5a337c3abad8f19fa491cf2b0f01fb2eecb",
+    "size": 50789
+  },
+  "modules/shared/utils.py": {
+    "hash": "a61adc8355013d351bcecca45acc40ad7b4662ad0d0ac6b7b423feb486bfba5b",
+    "size": 5226
+  },
+  "modules/stock/__init__.py": {
+    "hash": "9e68e7f45a0d57b42d3050f93dda71af2cf19127e276625688ce652fadf9794a",
+    "size": 244
+  },
+  "modules/stock/routes.py": {
+    "hash": "cde25d9faae048ad5e4b4a4bfb2a72ed24227ae8d06c6745e9929de2f380c21b",
+    "size": 66436
+  },
+  "modules/stock/servicio_movimientos.py": {
+    "hash": "054144aca9756ed864c2f2cdad22ae3098c1432e22d7fbc882e89e82bcc4ef28",
+    "size": 56944
+  },
+  "notas_1.0.1.txt": {
+    "hash": "732fd9e3c4053d13afef6a47ca5af211e8baf3dbef9c787dd91a51b3a735257f",
+    "size": 1185
+  },
+  "requirements.txt": {
+    "hash": "ed45b692273f1c31197a451af1a2aedcf57d1b5ad9d6ddd6470994e20a7a4a4b",
+    "size": 721
+  }
+}
