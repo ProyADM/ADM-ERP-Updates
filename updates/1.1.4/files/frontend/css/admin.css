@@ -1,0 +1,171 @@
+/* ============================================================
+   ADMIN - ESTILOS DEL PANEL DE ADMINISTRACIÓN (Etapa 2)
+   Usa las variables del proyecto (global.css).
+   ============================================================ */
+
+.admin-titulo { margin: 4px 0 14px; font-size: 18px; color: var(--ink); }
+.admin-body { display: block; }
+
+.admin-chip {
+  display: inline-block; padding: 4px 12px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; margin-bottom: 12px;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--ink-soft);
+}
+.admin-chip-ok { background: #dcfce7; border-color: #86efac; color: #166534; }
+.admin-chip-warn { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
+.admin-chip-gris { background: var(--surface-2); border-color: var(--border); color: var(--ink-soft); }
+
+.admin-banner {
+  margin-bottom: 14px; padding: 10px 14px; border-radius: var(--radius-sm);
+  background: #fef3c7; border: 1px solid #fcd34d; color: #92400e; font-size: 13px;
+}
+
+.admin-aviso {
+  padding: 14px; border-radius: var(--radius-sm); background: var(--surface-2);
+  border: 1px solid var(--border); color: var(--ink-soft); font-size: 13px;
+}
+.admin-aviso-error { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
+
+.admin-toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.admin-toolbar input[type="text"] { flex: 1; min-width: 220px; }
+
+.admin-btn {
+  padding: 6px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+  background: var(--surface); color: var(--ink); font-size: 12px; font-weight: 600;
+  cursor: pointer;
+}
+.admin-btn:hover { background: var(--surface-2); }
+.admin-btn-primario { background: var(--primary); border-color: var(--primary); color: #fff; }
+.admin-btn-peligro { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
+.admin-btn[disabled] { opacity: .5; cursor: not-allowed; }
+
+.admin-tabla { width: 100%; border-collapse: collapse; font-size: 13px; }
+.admin-tabla th, .admin-tabla td {
+  text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.admin-tabla th { font-size: 11px; text-transform: uppercase; color: var(--ink-soft); }
+.admin-tabla tr:hover td { background: var(--surface-2); }
+.admin-vacio { text-align: center; color: var(--ink-soft); padding: 18px; }
+
+.admin-panel {
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface);
+  padding: 16px; margin-bottom: 14px; box-shadow: var(--shadow);
+}
+.admin-panel h4 { margin: 0 0 12px; font-size: 15px; color: var(--ink); }
+.admin-campo { margin-bottom: 10px; display: flex; flex-direction: column; gap: 4px; }
+.admin-campo label { font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+.admin-campo input[type="text"], .admin-campo input[type="email"] { padding: 7px 9px; }
+
+/* ============================================================
+   ANCHO DE LECTURA DEL PANEL
+   ============================================================ */
+/* `.container` y `#module-content` no tienen regla propia en el frontend, así
+   que el panel se estiraba de borde a borde: en un monitor ancho cada permiso
+   medía ~1.800px y la descripción terminaba en el extremo derecho. Se acota
+   SOLO el panel (mismo ancho que usa reportes, 1180px) y se CENTRA: sin el
+   `margin: 0 auto` la franja gris del fondo queda entera a la derecha. */
+#module-content #admin-usuarios,
+#module-content #admin-roles,
+#module-content #admin-estado,
+#module-content #admin-auditoria,
+#module-content #admin-accesos { max-width: 1180px; margin-left: auto; margin-right: auto; }
+
+/* Permisos y opciones múltiples: tarjetas de ancho fijo en grilla. Antes eran
+   filas de `flex: 1 1 100%` con el check flotando en el medio y la descripción
+   pegada al borde derecho (zigzag). El markup de `adminMulti` (index.js) separa
+   nombre, descripción y pie dentro del span para que esto se lea en columna.
+   La grilla reparte las columnas en TODO el ancho de la fila, así que el 1180px
+   queda ocupado de punta a punta (no como tarjetas amontonadas a la izquierda). */
+.admin-grupo { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 10px; }
+/* Encabezado de grupo PLEGABLE: el título entero es el botón que abre/cierra
+   (con la flecha ▸/▾), y el botón de tildar/destildar todo vive adentro sin
+   plegar (el JS frena la propagación). El contador muestra tildados/total para
+   que el grupo cerrado siga siendo informativo. */
+.admin-grupo-titulo {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; font-weight: 700; color: var(--ink-soft);
+  text-transform: uppercase; letter-spacing: .03em; margin-bottom: 8px;
+}
+/* Insignia de alertas en el menú lateral (fila "Diagnóstico"): cuenta problemas
+   NUEVOS del sistema. Solo la ve quien tiene la pestaña (superadmin y
+   administrador); el contenedor se oculta con `data-perm` y la insignia va adentro. */
+.badge-alerta {
+  display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 999px;
+  background: #dc2626; color: #fff; font-size: 10px; font-weight: 700;
+  line-height: 16px; vertical-align: middle; min-width: 16px; text-align: center;
+}
+
+.admin-grupo-cabecera {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; margin: 0 0 8px -8px; border-radius: var(--radius-sm);
+  cursor: pointer; user-select: none;
+}
+.admin-grupo-cabecera:hover { background: var(--surface-2); }
+.admin-grupo-flecha {
+  display: inline-block; width: 12px; font-size: 10px; color: var(--ink-faint);
+  transition: transform .15s ease;
+}
+.admin-grupo-nombre { font-size: 12px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .03em; }
+.admin-grupo-cuenta { font-size: 11px; font-weight: 600; color: var(--ink-faint); }
+.admin-grupo-cabecera .admin-btn { font-size: 11px; padding: 3px 8px; font-weight: 600; text-transform: none; letter-spacing: 0; }
+.admin-grupo-cabecera .ayuda-icono { text-transform: none; letter-spacing: 0; }
+/* Al plegar se oculta SOLO la grilla de tarjetas: el título y el contador quedan. */
+.admin-grupo.admin-grupo-plegado .admin-checks { display: none; }
+.admin-grupo.admin-grupo-plegado .admin-grupo-cabecera { margin-bottom: 0; }
+.admin-grupo.admin-grupo-plegado .admin-grupo-flecha { transform: rotate(-90deg); }
+.admin-grupo-titulo .admin-btn { font-size: 11px; padding: 3px 8px; font-weight: 600; text-transform: none; letter-spacing: 0; }
+.admin-checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 8px; }
+.admin-checks .admin-check {
+  min-width: 0;
+  display: flex; align-items: flex-start; gap: 9px;
+  padding: 9px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface); text-align: left; line-height: 1.35; cursor: pointer;
+}
+.admin-checks .admin-check:hover { background: var(--surface-2); border-color: var(--border-2); }
+.admin-checks .admin-check input[type="checkbox"] {
+  width: 15px; height: 15px; margin: 1px 0 0; flex: 0 0 auto;
+}
+.admin-checks .admin-check > .admin-check-texto { flex: 1 1 auto; min-width: 0; display: block; }
+
+/* "Activo / Bloqueado": dos casillas sueltas, NO tarjetas de permiso. Ocupan la
+   fila completa y se acomodan en línea (si cayeran en la grilla de 3 columnas
+   quedarían como dos tarjetas enormes con una sola palabra adentro). */
+.admin-checks-inline { grid-template-columns: repeat(2, minmax(140px, 220px)); }
+.admin-checks-inline .admin-check { font-weight: 600; }
+.admin-checks-inline .admin-check > span { min-width: 0; }
+
+.admin-check-nombre { display: block; font-size: 12px; font-weight: 600; color: var(--ink); word-break: break-word; }
+.admin-check-nombre code { font-size: 11.5px; font-weight: 600; background: none; color: inherit; padding: 0; }
+.admin-check-desc { display: block; font-size: 11.5px; color: var(--ink-soft); }
+.admin-check-pie { display: block; margin-top: 3px; font-size: 10.5px; color: var(--ink-faint); }
+.admin-check-pie code { font-size: 10px; background: #eef2f7; padding: 0 4px; border-radius: 3px; color: var(--ink-soft); }
+.admin-check-badge {
+  display: inline-block; margin-top: 4px; padding: 1px 6px; border-radius: 999px;
+  font-size: 10px; font-weight: 700; background: #fef3c7; border: 1px solid #fcd34d; color: #92400e;
+}
+.admin-check-pie b { color: #b45309; }
+
+/* "Todas las bases" / "Todos los módulos": comodín de ancho completo. El texto
+   va envuelto en un <span> (index.js) porque como nodo de texto suelto el
+   `justify-content` no lo alcanzaba y quedaba centrado en medio de la fila. */
+.admin-checks .admin-check-todos { grid-column: 1 / -1; font-weight: 700; background: var(--surface-2); }
+.admin-check-todos > span { flex: 1 1 auto; min-width: 0; }
+
+/* "Sin efecto todavía": permisos que están en el catálogo pero que ningún
+   endpoint verifica (auditoría 14/09/2026). Se atenúa la tarjeta —no la
+   insignia, que tiene que quedar legible— para no documentar como real algo
+   que hoy no controla nada. */
+.admin-check-gris { opacity: 0.72; }
+.admin-check-gris .admin-check-nombre { color: var(--ink-soft); }
+.admin-check-gris .admin-check-badge { opacity: 1; }
+
+.admin-dato { display: flex; gap: 8px; font-size: 13px; padding: 4px 0; }
+.admin-dato b { min-width: 150px; color: var(--ink-soft); font-weight: 600; }
+
+/* Las vistas del panel usan .section, pero global.css las fuerza visibles dentro
+   de #module-content (#id gana por especificidad), así que se re-declara acá:
+   admin.css se carga último y solo la vista activa queda visible (mismo patrón
+   que stock.css). */
+#module-content .section { display: none; }
+#module-content .section.active { display: block; }
