@@ -1,0 +1,14 @@
+Correccion de seguridad: los reportes de ventas ya no muestran bases no autorizadas
+Ventas Globales disponible para usuarios con bases acotadas, con aviso de consolidado parcial
+Las bases que no responden se informan en pantalla en vez de desaparecer en silencio
+Panel: tilde "Todas las bases" y "Todos los modulos" (comodin '*') en el editor de usuarios
+Panel: descripcion de ayuda en cada permiso, con el identificador para cruzarlo con la API
+Panel: los 29 permisos que todavia no controlan nada se marcan como "sin efecto todavia"
+Panel: corregido el boton "tildar/destildar todo" del editor de roles
+Instalador: el desinstalador ahora cierra la aplicacion antes de borrar (evita desinstalaciones a medias)
+Instalador: avisa antes de cerrar los procesos en vez de hacerlo en silencio
+Instalador: la clave maestra se adjunta como archivo (.master.key), ya no hay que tipearla
+Instalador: verifica la configuracion al terminar y avisa si la app no va a poder arrancar
+Lanzador: corregido el desencriptado de respaldo de la configuracion
+App: log persistente en logs/app.log para poder diagnosticar fallos de conexion
+App: la consola ya no rompe el arranque por caracteres acentuados
