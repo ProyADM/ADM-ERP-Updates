@@ -1,0 +1,254 @@
+/* ============================================================
+   REPORTES - Estilos específicos
+   ============================================================ */
+
+.reportes-header {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.filtros-reporte {
+    display: flex;
+    gap: 15px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    margin-top: 15px;
+}
+
+.filtro-grupo {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.filtro-grupo label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+}
+.filtro-grupo .form-control {
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 14px;
+    min-width: 120px;
+}
+
+.btn-success {
+    background: #22c55e;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+}
+.btn-success:hover { background: #16a34a; }
+
+.btn-moneda {
+    padding: 8px 24px;
+    border-radius: 8px;
+    border: 2px solid #2563eb;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.btn-moneda.active {
+    background: #2563eb;
+    color: white;
+    box-shadow: 0 2px 8px rgba(37,99,235,0.3);
+}
+.btn-moneda:not(.active) {
+    background: white;
+    color: #2563eb;
+}
+.btn-moneda[data-moneda="DL"]:not(.active) {
+    border-color: #16a34a;
+    color: #16a34a;
+}
+.btn-moneda[data-moneda="DL"].active {
+    background: #16a34a;
+    border-color: #16a34a;
+    box-shadow: 0 2px 8px rgba(22,163,74,0.3);
+}
+
+/* Contenedor de tabla: es EL contenedor con scroll (el unico), asi que el encabezado
+   `sticky` queda pegado al tope de la caja y la barra horizontal al pie de la caja.
+   OJO con el `padding`: un contenedor que scrollea con `padding` deja una franja por
+   la que se ven pasar las filas POR ENCIMA del encabezado pegado (lo reporto el
+   usuario el 05/10/2026: "la linea de titulos deberia estar pegada al tope de la
+   tabla"). Por eso el padding va en 0 y el aire lo pone cada celda. */
+.tabla-container {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 0;
+    overflow: auto;
+    max-height: calc(100vh - 240px);
+    min-height: 260px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+}
+
+.tabla-container table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    min-width: 800px;
+}
+
+/* El encabezado pegado ARRIBA: el `sticky` va en las CELDAS (`th`), que es donde el
+   navegador lo soporta. El `position: sticky` en el `thead` se saco el 05/10/2026:
+   era redundante con el de las celdas y en los navegadores que SI lo aplican el
+   grupo se corre y las celdas se corren OTRA VEZ con el (el encabezado quedaba una
+   fila mas abajo y por arriba se veia pasar una fila de datos: el sintoma que
+   reporto el usuario). */
+.tabla-container table thead {
+    background: #f1f5f9;
+}
+.tabla-container table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: #f1f5f9 !important;
+    border-bottom: 2px solid #e2e8f0 !important;
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 600;
+    color: #1a1a2e;
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.tabla-container table tfoot {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    background: #f8fafc !important;
+}
+.tabla-container table tfoot td {
+    position: sticky;
+    bottom: 0;
+    z-index: 21;
+    background: #f8fafc !important;
+    border-top: 2px solid #e2e8f0 !important;
+    padding: 10px 12px;
+    font-weight: 700;
+    color: #1a1a2e;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
+}
+
+.tabla-container table tbody td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #f1f5f9;
+    white-space: nowrap;
+}
+.tabla-container table tbody tr:hover td {
+    background: #f8fafc;
+}
+.tabla-container table tbody tr:last-child td {
+    border-bottom: none;
+}
+.tabla-container table td.text-right,
+.tabla-container table th.text-right {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+#tabla-dinamica {
+    overflow: visible;
+}
+
+/* Resumen anual: una fila por ANIO (05/10/2026: el usuario lo achico a "solo por
+   Año"), asi que con 2-3 filas alcanza y no hace falta la caja de 300px. */
+#resumen-anual {
+    overflow: auto;
+    max-height: 140px;
+}
+#resumen-anual table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+#resumen-anual table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+#resumen-anual table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 11;
+    background: #f1f5f9 !important;
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid #e2e8f0;
+}
+#resumen-anual table tfoot {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+}
+#resumen-anual table tfoot td {
+    position: sticky;
+    bottom: 0;
+    z-index: 11;
+    background: #f8fafc !important;
+    border-top: 2px solid #e2e8f0 !important;
+    padding: 8px 12px;
+    font-weight: 700;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
+}
+#resumen-anual table td {
+    padding: 6px 12px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+/* ============================================================
+   Ventas por Pais: la barra de filtros
+   ============================================================ */
+/* Brief 05/10/2026 (el usuario): "el selector de año al igual que ventas por
+   pais al lado del resto de los botones". La barra la arma
+   `consolidado_pais.js` con la clase `.filtros-consolidado-pais`, que NO existia
+   en ningun CSS (por eso quedaba desarmada y distinta a la de Ventas Globales,
+   que usa estilos en linea). Aca se la deja igual: misma fila, mismo separador y
+   el contador de registros empujado a la derecha. */
+.filtros-consolidado-pais {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    background: #f8fafc;
+    padding: 12px 16px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 16px;
+}
+
+/* El selector de año, chico y pegado a los botones (no una fila completa).
+   OJO: `global.css` tiene `input, select { width: 100% }`, asi que hace falta un
+   selector de ID (le gana por especificidad) para que no ocupe toda la fila. Es
+   lo que tenia Globales sin arreglar y por eso el año seguia saliendo en su
+   propia linea (brief 05/10/2026: "lo del año tiene que ser igual que en ventas
+   por pais"). */
+.filtros-consolidado-pais select#selectorAnioVentas,
+select#selectorAnioGlobal {
+    padding: 6px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 14px;
+    background: white;
+    min-width: 100px;
+    width: auto;
+    height: auto;
+}
+
+/* El contador de registros, al final de la fila. */
+.filtros-consolidado-pais #total-registros-consolidado {
+    font-size: 13px;
+    color: #64748b;
+    margin-left: auto;
+}
